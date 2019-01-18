@@ -1,20 +1,24 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 将 binds 的 name 从 kebabcase 转换成 camelcase
- * @author errorrik(errorrik@gmail.com)
  */
 
 var kebab2camel = require('../util/kebab2camel');
-var IndexedList = require('../util/indexed-list');
+var each = require('../util/each');
 
 /**
  * 将 binds 的 name 从 kebabcase 转换成 camelcase
  *
- * @param {IndexedList} binds binds集合
- * @return {IndexedList}
+ * @param {Array} binds binds集合
+ * @return {Array}
  */
 function camelComponentBinds(binds) {
-    var result = new IndexedList();
-    binds.each(function (bind) {
+    var result = [];
+    each(binds, function (bind) {
         result.push({
             name: kebab2camel(bind.name),
             expr: bind.expr,

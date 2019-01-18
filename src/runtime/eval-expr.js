@@ -1,15 +1,17 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 表达式计算
- * @author errorrik(errorrik@gmail.com)
  */
 
 var ExprType = require('../parser/expr-type');
-var BinaryOp = require('./binary-op');
+var extend = require('../util/extend');
 var DEFAULT_FILTERS = require('./default-filters');
-var escapeHTML = require('./escape-html');
 var evalArgs = require('./eval-args');
-var findMethod = require('./find-method');
-var each = require('../util/each');
+var dataCache = require('./data-cache');
 
 /**
  * 计算表达式的值
@@ -17,73 +19,186 @@ var each = require('../util/each');
  * @param {Object} expr 表达式对象
  * @param {Data} data 数据容器对象
  * @param {Component=} owner 所属组件环境
- * @param {boolean?} escapeInterpHtml 是否对插值进行html转义
  * @return {*}
  */
-function evalExpr(expr, data, owner, escapeInterpHtml) {
+function evalExpr(expr, data, owner) {
     if (expr.value != null) {
         return expr.value;
     }
 
-    switch (expr.type) {
-        case ExprType.UNARY:
-            return !evalExpr(expr.expr, data, owner);
+    var value = dataCache.get(data, expr);
 
-        case ExprType.BINARY:
-            var opHandler = BinaryOp[expr.operator];
-            if (typeof opHandler === 'function') {
-                return opHandler(
-                    evalExpr(expr.segs[0], data, owner),
-                    evalExpr(expr.segs[1], data, owner)
+    if (value == null) {
+        switch (expr.type) {
+            case ExprType.UNARY:
+                value = evalExpr(expr.expr, data, owner);
+                switch (expr.operator) {
+                    case 33:
+                        value = !value;
+                        break;
+
+                    case 45:
+                        value = 0 - value;
+                        break;
+                }
+                break;
+
+            case ExprType.BINARY:
+                var leftValue = evalExpr(expr.segs[0], data, owner);
+                var rightValue = evalExpr(expr.segs[1], data, owner);
+
+                /* eslint-disable eqeqeq */
+                switch (expr.operator) {
+                    case 37:
+                        value = leftValue % rightValue;
+                        break;
+                    case 43:
+                        value = leftValue + rightValue;
+                        break;
+                    case 45:
+                        value = leftValue - rightValue;
+                        break;
+                    case 42:
+                        value = leftValue * rightValue;
+                        break;
+                    case 47:
+                        value = leftValue / rightValue;
+                        break;
+                    case 60:
+                        value = leftValue < rightValue;
+                        break;
+                    case 62:
+                        value = leftValue > rightValue;
+                        break;
+                    case 76:
+                        value = leftValue && rightValue;
+                        break;
+                    case 94:
+                        value = leftValue != rightValue;
+                        break;
+                    case 121:
+                        value = leftValue <= rightValue;
+                        break;
+                    case 122:
+                        value = leftValue == rightValue;
+                        break;
+                    case 123:
+                        value = leftValue >= rightValue;
+                        break;
+                    case 155:
+                        value = leftValue !== rightValue;
+                        break;
+                    case 183:
+                        value = leftValue === rightValue;
+                        break;
+                    case 248:
+                        value = leftValue || rightValue;
+                        break;
+                }
+                /* eslint-enable eqeqeq */
+                break;
+
+            case ExprType.TERTIARY:
+                value = evalExpr(
+                    expr.segs[evalExpr(expr.segs[0], data, owner) ? 1 : 2],
+                    data,
+                    owner
                 );
-            }
-            return;
+                break;
 
-        case ExprType.TERTIARY:
-            return evalExpr(
-                expr.segs[evalExpr(expr.segs[0], data, owner) ? 1 : 2],
-                data,
-                owner
-            );
+            case ExprType.ARRAY:
+                value = [];
+                for (var i = 0, l = expr.items.length; i < l; i++) {
+                    var item = expr.items[i];
+                    var itemValue = evalExpr(item.expr, data, owner);
 
-        case ExprType.ACCESSOR:
-            return data.get(expr);
-
-        case ExprType.INTERP:
-            var value = evalExpr(expr.expr, data, owner);
-
-            owner && each(expr.filters, function (filter) {
-                /* eslint-disable no-use-before-define */
-                var filterFn = findMethod(owner.filters, filter.name, data)
-                    || findMethod(DEFAULT_FILTERS, filter.name, data);
-                /* eslint-enable no-use-before-define */
-
-                if (typeof filterFn === 'function') {
-                    var args = [value].concat(evalArgs(filter.args, data, owner));
-                    value = filterFn.apply(owner, args);
+                    if (item.spread) {
+                        itemValue && (value = value.concat(itemValue));
+                    }
+                    else {
+                        value.push(itemValue);
+                    }
                 }
-            });
+                break;
 
-            if (value == null) {
-                value = '';
-            }
+            case ExprType.OBJECT:
+                value = {};
+                for (var i = 0, l = expr.items.length; i < l; i++) {
+                    var item = expr.items[i];
+                    var itemValue = evalExpr(item.expr, data, owner);
 
-            return value;
+                    if (item.spread) {
+                        itemValue && extend(value, itemValue);
+                    }
+                    else {
+                        value[evalExpr(item.name, data, owner)] = itemValue;
+                    }
+                }
+                break;
 
-        case ExprType.TEXT:
-            var buf = '';
-            each(expr.segs, function (seg) {
-                var segValue = evalExpr(seg, data, owner);
+            case ExprType.ACCESSOR:
+                value = data.get(expr);
+                break;
 
-                // escape html
-                if (escapeInterpHtml && seg.type === ExprType.INTERP && !seg.filters[0]) {
-                    segValue = escapeHTML(segValue);
+            case ExprType.INTERP:
+                value = evalExpr(expr.expr, data, owner);
+
+                if (owner) {
+                    for (var i = 0, l = expr.filters.length; i < l; i++) {
+                        var filter = expr.filters[i];
+                        var filterName = filter.name.paths[0].value;
+
+                        if (owner.filters[filterName]) {
+                            value = owner.filters[filterName].apply(
+                                owner,
+                                [value].concat(evalArgs(filter.args, data, owner))
+                            );
+                        }
+                        else if (DEFAULT_FILTERS[filterName]) {
+                            value = DEFAULT_FILTERS[filterName](
+                                value,
+                                filter.args[0] ? filter.args[0].value : ''
+                            );
+                        }
+                    }
                 }
 
-                buf += segValue;
-            });
-            return buf;
+                if (value == null) {
+                    value = '';
+                }
+
+                break;
+
+            case ExprType.CALL:
+                if (owner && expr.name.type === ExprType.ACCESSOR) {
+                    var method = owner;
+                    var pathsLen = expr.name.paths.length;
+
+                    for (var i = 0; method && i < pathsLen; i++) {
+                        method = method[evalExpr(expr.name.paths[i], data, owner)];
+                    }
+
+                    if (method) {
+                        value = method.apply(owner, evalArgs(expr.args, data, owner));
+                    }
+                }
+
+                break;
+
+            /* eslint-disable no-redeclare */
+            case ExprType.TEXT:
+                var buf = '';
+                for (var i = 0, l = expr.segs.length; i < l; i++) {
+                    var seg = expr.segs[i];
+                    buf += seg.value || evalExpr(seg, data, owner);
+                }
+                return buf;
+        }
+
+        dataCache.set(data, expr, value);
     }
+
+    return value;
 }
 
 exports = module.exports = evalExpr;

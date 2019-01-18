@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 读取字符串
- * @author errorrik(errorrik@gmail.com)
  */
 
 
@@ -31,6 +35,7 @@ function readString(walker) {
     var literal = walker.cut(startIndex, walker.index);
     return {
         type: ExprType.STRING,
+        // 处理字符转义
         value: (new Function('return ' + literal))()
     };
 }

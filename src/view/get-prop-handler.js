@@ -1,14 +1,18 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 获取属性处理对象
- * @author errorrik(errorrik@gmail.com)
  */
 
 var contains = require('../util/contains');
 var empty = require('../util/empty');
 var svgTags = require('../browser/svg-tags');
 var evalExpr = require('../runtime/eval-expr');
-var nodeEvalExpr = require('./node-eval-expr');
-var isComponent = require('./is-component');
+var getANodeProp = require('./get-a-node-prop');
+var NodeType = require('./node-type');
 
 
 /**
@@ -27,8 +31,7 @@ var HTML_ATTR_PROP_MAP = {
     'valign': 'vAlign',
     'usemap': 'useMap',
     'frameborder': 'frameBorder',
-    'for': 'htmlFor',
-    'class': 'className'
+    'for': 'htmlFor'
 };
 
 /**
@@ -38,24 +41,17 @@ var HTML_ATTR_PROP_MAP = {
  * @type {Object}
  */
 var defaultElementPropHandler = {
-    attr: function (element, name, value) {
-        if (value != null) {
-            return ' ' + name + '="' + value + '"';
-        }
-    },
-
-    prop: function (element, name, value) {
+    prop: function (el, value, name, element) {
         var propName = HTML_ATTR_PROP_MAP[name] || name;
-        var el = element.el;
-
+        value = value == null ? '' : value;
         // input 的 type 是个特殊属性，其实也应该用 setAttribute
         // 但是 type 不应该运行时动态改变，否则会有兼容性问题
         // 所以这里直接就不管了
-        if (svgTags[element.tagName] || !(propName in el)) {
-            el.setAttribute(name, value);
+        if (propName in el) {
+            el[propName] = value;
         }
         else {
-            el[propName] = value == null ? '' : value;
+            el.setAttribute(name, value);
         }
 
         // attribute 绑定的是 text，所以不会出现 null 的情况，这里无需处理
@@ -75,6 +71,21 @@ var defaultElementPropHandler = {
     }
 };
 
+var svgPropHandler = {
+    prop: function (el, value, name) {
+        el.setAttribute(name, value);
+    }
+};
+
+var boolPropHandler = {
+    prop: function (el, value, name, element, prop) {
+        var propName = HTML_ATTR_PROP_MAP[name] || name;
+        el[propName] = !!(prop && prop.raw === ''
+            || value && value !== 'false' && value !== '0');
+    }
+};
+
+/* eslint-disable fecs-properties-quote */
 /**
  * 默认的属性设置变换方法
  *
@@ -83,30 +94,25 @@ var defaultElementPropHandler = {
  */
 var defaultElementPropHandlers = {
     style: {
-        attr: function (element, name, value) {
-            if (value != null) {
-                return ' style="' + value + '"';
-            }
-        },
+        prop: function (el, value) {
+            el.style.cssText = value;
+        }
+    },
 
-        prop: function (element, name, value) {
-            element.el.style.cssText = value;
+    'class': { // eslint-disable-line
+        prop: function (el, value) {
+            el.className = value;
         }
     },
 
     slot: {
-        attr: empty,
         prop: empty
     },
 
-    draggable: genBoolPropHandler('draggable'),
-    readonly: genBoolPropHandler('readonly'),
-    disabled: genBoolPropHandler('disabled'),
-    autofocus: genBoolPropHandler('autofocus'),
-    required: genBoolPropHandler('required')
+    draggable: boolPropHandler
 };
+/* eslint-enable fecs-properties-quote */
 
-var checkedPropHandler = genBoolPropHandler('checked');
 var analInputChecker = {
     checkbox: contains,
     radio: function (a, b) {
@@ -114,57 +120,62 @@ var analInputChecker = {
     }
 };
 
-function analInputCheckedState(element, value, oper) {
-    var bindValue = element.props.get('value');
-    var bindType = element.props.get('type');
+function analInputCheckedState(element, value) {
+    var bindValue = getANodeProp(element.aNode, 'value');
+    var bindType = getANodeProp(element.aNode, 'type');
 
     if (bindValue && bindType) {
-        var type = nodeEvalExpr(element, bindType.expr);
+        var type = evalExpr(bindType.expr, element.scope, element.owner);
 
         if (analInputChecker[type]) {
-            var bindChecked = element.props.get('checked');
-            if (!bindChecked.hintExpr) {
+            var bindChecked = getANodeProp(element.aNode, 'checked');
+            if (bindChecked != null && !bindChecked.hintExpr) {
                 bindChecked.hintExpr = bindValue.expr;
             }
 
-            var checkedState = analInputChecker[type](
+            return !!analInputChecker[type](
                 value,
-                nodeEvalExpr(element, bindValue.expr)
+                evalExpr(bindValue.expr, element.scope, element.owner)
             );
-
-            switch (oper) {
-                case 'attr':
-                    return checkedState ? ' checked="checked"' : '';
-
-                case 'prop':
-                    element.el.checked = checkedState;
-                    return;
-            }
         }
     }
-
-    return checkedPropHandler[oper](element, 'checked', value);
 }
 
 var elementPropHandlers = {
     input: {
-        multiple: genBoolPropHandler('multiple'),
+        multiple: boolPropHandler,
         checked: {
-            attr: function (element, name, value) {
-                return analInputCheckedState(element, value, 'attr');
-            },
+            prop: function (el, value, name, element) {
+                var state = analInputCheckedState(element, value);
 
-            prop: function (element, name, value) {
-                analInputCheckedState(element, value, 'prop');
+                boolPropHandler.prop(
+                    el,
+                    state != null ? state : value,
+                    'checked',
+                    element
+                );
+
+                // #[begin] allua
+                // 代码不用抽出来防重复，allua内的代码在现代浏览器版本会被编译时干掉，gzip也会处理重复问题
+                // see: #378
+                if (ie && ie < 8 && !element.lifeCycle.attached) {
+                    boolPropHandler.prop(
+                        el,
+                        state != null ? state : value,
+                        'defaultChecked',
+                        element
+                    );
+                }
+                // #[end]
             },
 
             output: function (element, bindInfo, data) {
                 var el = element.el;
-                var bindValue = element.props.get('value');
-                var bindType = element.props.get('type') || {};
+                var bindValue = getANodeProp(element.aNode, 'value');
+                var bindType = getANodeProp(element.aNode, 'type') || {};
 
                 if (bindValue && bindType) {
-                    switch (bindType.raw) {
+                    switch (el.type.toLowerCase()) {
                         case 'checkbox':
                             data[el.checked ? 'push' : 'remove'](bindInfo.expr, el.value);
                             return;
@@ -182,115 +193,110 @@ var elementPropHandlers = {
 
                 defaultElementPropHandler.output(element, bindInfo, data);
             }
-        }
-    },
-
-    textarea: {
-        value: {
-            attr: empty,
-            prop: defaultElementPropHandler.prop,
-            output: defaultElementPropHandler.output
-        }
+        },
+        readonly: boolPropHandler,
+        disabled: boolPropHandler,
+        autofocus: boolPropHandler,
+        required: boolPropHandler
     },
 
     option: {
         value: {
-            attr: function (element, name, value) {
-                var attrStr = ' value="' + (value || '') + '"';
-                var parentSelect = element.parent;
-                while (parentSelect) {
-                    if (parentSelect.tagName === 'select') {
-                        break;
-                    }
+            prop: function (el, value, name, element) {
+                defaultElementPropHandler.prop(el, value, name, element);
 
-                    parentSelect = parentSelect.parent;
+                if (isOptionSelected(element, value)) {
+                    el.selected = true;
                 }
-
-
-                if (parentSelect) {
-                    var selectValue = null;
-                    var prop;
-                    var expr;
-
-                    if ((prop = parentSelect.props.get('value'))
-                        && (expr = prop.expr)
-                    ) {
-                        selectValue = isComponent(parentSelect)
-                                ? evalExpr(expr, parentSelect.data, parentSelect)
-                                : nodeEvalExpr(parentSelect, expr)
-                            || '';
-                    }
-
-                    if (selectValue === value) {
-                        attrStr += ' selected';
-                    }
-                }
-
-                return attrStr;
-            },
-
-            prop: defaultElementPropHandler.prop
+            }
         }
     },
 
     select: {
         value: {
-            attr: empty,
-            prop: function (element, name, value) {
-                element.el.value = value || '';
+            prop: function (el, value) {
+                el.value = value || '';
             },
 
             output: defaultElementPropHandler.output
+        },
+        readonly: boolPropHandler,
+        disabled: boolPropHandler,
+        autofocus: boolPropHandler,
+        required: boolPropHandler
+    },
+
+    textarea: {
+        readonly: boolPropHandler,
+        disabled: boolPropHandler,
+        autofocus: boolPropHandler,
+        required: boolPropHandler
+    },
+
+    button: {
+        disabled: boolPropHandler,
+        autofocus: boolPropHandler,
+        type: {
+            prop: function (el, value) {
+                el.setAttribute('type', value || '');
+            }
         }
     }
 };
 
-/**
- * 生成 bool 类型属性绑定操作的变换方法
- *
- * @inner
- * @param {string} attrName 属性名
- * @return {Object}
- */
-function genBoolPropHandler(attrName) {
-    return {
-        attr: function (element, name, value) {
-            // 因为元素的attr值必须经过html escape，否则可能有漏洞
-            // 所以这里直接对假值字符串形式进行处理
-            // NaN之类非主流的就先不考虑了
-            var prop = element.props.get(name);
-            if (prop && prop.raw === ''
-                || value && value !== 'false' && value !== '0'
-            ) {
-                return ' ' + attrName;
-            }
-        },
-
-        prop: function (element, name, value) {
-            var propName = HTML_ATTR_PROP_MAP[attrName] || attrName;
-            element.el[propName] = !!(value && value !== 'false' && value !== '0');
+function isOptionSelected(element, value) {
+    var parentSelect = element.parent;
+    while (parentSelect) {
+        if (parentSelect.tagName === 'select') {
+            break;
         }
-    };
+
+        parentSelect = parentSelect.parent;
+    }
+
+
+    if (parentSelect) {
+        var selectValue = null;
+        var prop;
+        var expr;
+
+        if ((prop = getANodeProp(parentSelect.aNode, 'value'))
+            && (expr = prop.expr)
+        ) {
+            selectValue = parentSelect.nodeType === NodeType.CMPT
+                ? evalExpr(expr, parentSelect.data, parentSelect)
+                : evalExpr(expr, parentSelect.scope, parentSelect.owner)
+                || '';
+        }
+
+        if (selectValue === value) {
+            return 1;
+        }
+    }
 }
 
 
 /**
  * 获取属性处理对象
  *
- * @param {Element} element 元素实例
- * @param {string} name 属性名
+ * @param {string} tagName 元素tag
+ * @param {string} attrName 属性名
  * @return {Object}
  */
-function getPropHandler(element, name) {
-    var tagPropHandlers = elementPropHandlers[element.tagName];
-    if (!tagPropHandlers) {
-        tagPropHandlers = elementPropHandlers[element.tagName] = {};
+function getPropHandler(tagName, attrName) {
+    if (svgTags[tagName]) {
+        return svgPropHandler;
     }
 
-    var propHandler = tagPropHandlers[name];
+    var tagPropHandlers = elementPropHandlers[tagName];
+    if (!tagPropHandlers) {
+        tagPropHandlers = elementPropHandlers[tagName] = {};
+    }
+
+    var propHandler = tagPropHandlers[attrName];
     if (!propHandler) {
-        propHandler = defaultElementPropHandlers[name] || defaultElementPropHandler;
-        tagPropHandlers[name] = propHandler;
+        propHandler = defaultElementPropHandlers[attrName] || defaultElementPropHandler;
+        tagPropHandlers[attrName] = propHandler;
     }
 
     return propHandler;

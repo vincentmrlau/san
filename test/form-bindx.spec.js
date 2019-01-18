@@ -33,7 +33,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + input.id, 'input', 'test' + (+new Date()));
+        triggerEvent(input, 'input', 'test' + (+new Date()));
         setTimeout(doneSpec, 500);
 
     });
@@ -76,7 +76,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 100);
         }
 
-        triggerEvent('#' + inputs[0].id, 'input', '<a>sb</a>');
+        triggerEvent(inputs[0], 'input', '<a>sb</a>');
         setTimeout(doneSpec, 200);
 
     });
@@ -142,7 +142,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + input.id, 'input', inputValue);
+        triggerEvent(input, 'input', inputValue);
         setTimeout(doneSpec, 500);
 
     });
@@ -166,7 +166,7 @@ describe("Form TwoWay Binding", function () {
         expect(textarea.value).toBe(defName);
 
         doneSpec();
-        triggerEvent('#' + textarea.id, 'input', 'added2')
+        triggerEvent(textarea, 'input', 'added2')
 
 
         function doneSpec() {
@@ -208,7 +208,7 @@ describe("Form TwoWay Binding", function () {
         expect(inputs[1].value).toBe('varsha');
         expect(inputs[2].value).toBe('firede');
 
-        triggerEvent('#' + inputs[1].id , 'input', 'added3');
+        triggerEvent(inputs[1], 'input', 'added3');
 
         doneSpec();
         function doneSpec() {
@@ -267,7 +267,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + inputs[1].id , 'input', 'test');
+        triggerEvent(inputs[1], 'input', 'test');
         setTimeout(doneSpec, 500);
 
     });
@@ -342,7 +342,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + inputs[1].id, 'input', 'test')
+        triggerEvent(inputs[1], 'input', 'test')
         setTimeout(doneSpec, 500);
 
     });
@@ -374,7 +374,7 @@ describe("Form TwoWay Binding", function () {
             expect(inputs[0].value).toBe('errorrik');
             expect(inputs[1].value).toBe('varsha');
 
-            triggerEvent('#'+ inputs[1].id, 'input', 'test');
+            triggerEvent(inputs[1], 'input', 'test');
             setTimeout(doneSpec, 500);
 
         });
@@ -427,7 +427,7 @@ describe("Form TwoWay Binding", function () {
             expect(inputs[2].value).toBe('varsha');
             expect(inputs[3].value).toBe('firede');
 
-            triggerEvent('#' + inputs[1].id, 'input', 'test');
+            triggerEvent(inputs[1], 'input', 'test');
 
             setTimeout(doneSpec, 500);
 
@@ -486,7 +486,7 @@ describe("Form TwoWay Binding", function () {
             expect(inputs[0].value).toBe('errorrik');
             expect(inputs[1].value).toBe('varsha');
 
-            triggerEvent('#' + inputs[1].id, 'input', 'test');
+            triggerEvent(inputs[1], 'input', 'test');
             setTimeout(doneSpec, 500);
         });
 
@@ -544,7 +544,7 @@ describe("Form TwoWay Binding", function () {
         expect(inputs[0].checked).toBe(false);
         expect(inputs[1].checked).toBe(true);
         expect(inputs[2].checked).toBe(false);
-        expect(wrap.getElementsByTagName('b')[0].innerHTML.indexOf('varsha')).toBe(0);
+        expect(wrap.getElementsByTagName('b')[0].innerHTML).toContain('varsha');
 
 
         function doneSpec() {
@@ -574,7 +574,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + inputs[0].id, 'click');
+        triggerEvent(inputs[0], 'click');
 
         setTimeout(doneSpec, 500);
 
@@ -672,7 +672,7 @@ describe("Form TwoWay Binding", function () {
         expect(inputs[0].checked).toBe(true);
         expect(inputs[1].checked).toBe(false);
 
-        triggerEvent('#' + inputs[1].id, 'click');
+        triggerEvent(inputs[1], 'click');
         setTimeout(doneSpec, 500);
 
         function doneSpec() {
@@ -733,7 +733,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + inputs[1].id, 'click');
+        triggerEvent(inputs[1], 'click');
 
         setTimeout(doneSpec, 500);
 
@@ -788,7 +788,7 @@ describe("Form TwoWay Binding", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + inputs[0].id, 'click');
+        triggerEvent(inputs[0], 'click');
 
         setTimeout(doneSpec, 500);
 
@@ -820,7 +820,7 @@ describe("Form TwoWay Binding", function () {
         expect(wrap.getElementsByTagName('b')[0].title).toBe('firede');
 
 
-        triggerEvent('#' + select.id, 'select', 0);
+        triggerEvent(select, 'select', 0);
         setTimeout(doneSpec, 500);
 
 
@@ -868,7 +868,7 @@ describe("Form TwoWay Binding", function () {
         expect(select.selectedIndex).toBe(1);
         expect(wrap.getElementsByTagName('b')[0].title).toBe('firede');
 
-        triggerEvent('#' + select.id, 'select', 0);
+        triggerEvent(select, 'select', 0);
         setTimeout(doneSpec, 500);
 
         function doneSpec() {
@@ -1083,11 +1083,6 @@ describe("Form TwoWay Binding", function () {
     });
 
     it("select as component root element", function (done) {
-        if (/msie/i.test(navigator.userAgent)) {
-            done();
-            return;
-        }
-
         var MyComponent = san.defineComponent({
             template: '<select value="{=online=}">'
                 +   '<option value="errorrik">errorrik</option>'
@@ -1171,7 +1166,7 @@ describe("Form TwoWay Binding", function () {
             expect(input.value).toBe('two');
             expect(select.selectedIndex).toBe(1);
 
-            triggerEvent('#' + input.id, 'input', '22222');
+            triggerEvent(input, 'input', '22222');
 
             setTimeout(function () {
                 expect(input.value).toBe('two22222');
@@ -1229,7 +1224,7 @@ describe("Form TwoWay Binding", function () {
             expect(bs[0].title).toBe('hello');
             expect(inputs[0].value).toBe('hello');
 
-            triggerEvent('#' + inputs[1].id, 'input', 'san');
+            triggerEvent(inputs[1], 'input', 'san');
 
             setTimeout(function () {
                 expect(inputs[1].value).toBe('san');
@@ -1242,5 +1237,118 @@ describe("Form TwoWay Binding", function () {
                 done();
             }, 400);
         });
+    });
+
+    it("dynamic input type: radio", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div>'
+                + '<b>{{online}}</b>'
+                + '<label><input type="{{inputType}}" value="errorrik" checked="{=online=}" name="onliner">errorrik</label>'
+                + '<label><input type="{{inputType}}" value="varsha" checked="{=online=}" name="onliner">varsha</label>'
+                + '<label><input type="{{inputType}}" value="firede" checked="{=online=}" name="onliner">firede</label>'
+                + '</div>',
+
+            initData: function () {
+                return {
+                    online: 'varsha',
+                    inputType: 'radio'
+                };
+            }
+        });
+
+        var myComponent = new MyComponent();
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var inputs = wrap.getElementsByTagName('input');
+        expect(inputs[0].checked).toBe(false);
+        expect(inputs[1].checked).toBe(true);
+        expect(inputs[2].checked).toBe(false);
+        expect(wrap.getElementsByTagName('b')[0].innerHTML.indexOf('varsha')).toBe(0);
+
+
+        function doneSpec() {
+            var online = myComponent.data.get('online');
+            if (online !== 'varsha') {
+                var bEl = wrap.getElementsByTagName('b')[0];
+                expect(bEl.innerHTML.indexOf(online) >= 0).toBe(true);
+
+                var inputs = wrap.getElementsByTagName('input');
+                for (var i = 0; i < inputs.length; i++) {
+                    var input = inputs[i];
+                    expect(input.checked).toBe(online === input.value);
+                }
+
+                done();
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                return;
+            }
+
+            setTimeout(doneSpec, 500);
+        }
+
+        triggerEvent(inputs[0], 'click');
+
+        setTimeout(doneSpec, 500);
+
+    });
+
+    it("dynamic input type: checkbox", function (done) {
+        var MyComponent = san.defineComponent({
+            template: ''
+                + '<ul><li san-for="item in items">'
+                + '<u>{{item.label}} - {{item.values}}</u>'
+                + '<label san-for="box in item.datasource">'
+                + '<input type="{{inputType}}" value="{{box.value}}" checked="{=item.values=}"> {{box.title}}'
+                + '</label>'
+                + '</li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                inputType: 'checkbox',
+                items: [
+                    {
+                        label: 'A',
+                        datasource: [
+                            {
+                                title: 'foo',
+                                value: 'foo'
+                            },
+                            {
+                                title: 'bar',
+                                value: 'bar'
+                            }
+                        ],
+                        values: ['foo']
+                    }
+                ]
+            }
+        });
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var inputs = wrap.getElementsByTagName('input');
+        expect(inputs[0].checked).toBe(true);
+        expect(inputs[1].checked).toBe(false);
+
+        triggerEvent(inputs[1], 'click');
+        setTimeout(doneSpec, 500);
+
+        function doneSpec() {
+            var inputs = wrap.getElementsByTagName('input');
+            expect(inputs[0].checked).toBe(true);
+            expect(inputs[1].checked).toBe(true);
+            expect(myComponent.data.get('items[0].values')).toContain('foo');
+            expect(myComponent.data.get('items[0].values')).toContain('bar');
+
+            done();
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+        }
+
     });
 });

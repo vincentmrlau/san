@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 解析指令
- * @author errorrik(errorrik@gmail.com)
  */
 
 
@@ -8,8 +12,8 @@ var Walker = require('./walker');
 var parseExpr = require('./parse-expr');
 var parseCall = require('./parse-call');
 var parseText = require('./parse-text');
-var parseInterp = require('./parse-interp');
 var readAccessor = require('./read-accessor');
+var readUnaryExpr = require('./read-unary-expr');
 
 /**
  * 指令解析器
@@ -20,14 +24,21 @@ var readAccessor = require('./read-accessor');
 var directiveParsers = {
     'for': function (value) {
         var walker = new Walker(value);
-        var match = walker.match(/^\s*([\$0-9a-z_]+)(\s*,\s*([\$0-9a-z_]+))?\s+in\s+/ig);
+        var match = walker.match(/^\s*([\$0-9a-z_]+)(\s*,\s*([\$0-9a-z_]+))?\s+in\s+/ig, 1);
 
         if (match) {
-            return {
+            var directive = {
                 item: parseExpr(match[1]),
                 index: parseExpr(match[3] || '$index'),
-                list: readAccessor(walker)
+                value: readUnaryExpr(walker)
             };
+
+            if (walker.match(/\s*trackby\s+/ig, 1)) {
+                var start = walker.index;
+                directive.trackBy = readAccessor(walker);
+                directive.trackBy.raw = walker.cut(start, walker.index);
+            }
+            return directive;
         }
 
         // #[begin] error
@@ -35,9 +46,9 @@ var directiveParsers = {
         // #[end]
     },
 
-    'ref': function (value) {
+    'ref': function (value, options) {
         return {
-            value: parseText(value)
+            value: parseText(value, options.delimiters)
         };
     },
 
@@ -55,13 +66,19 @@ var directiveParsers = {
 
     'else': function (value) {
         return {
-            value: 1
+            value: {}
+        };
+    },
+
+    'bind': function (value) {
+        return {
+            value: parseExpr(value.replace(/(^\{\{|\}\}$)/g, ''))
         };
     },
 
     'html': function (value) {
         return {
-            value: parseInterp(value)
+            value: parseExpr(value.replace(/(^\{\{|\}\}$)/g, ''))
         };
     },
 
@@ -78,16 +95,17 @@ var directiveParsers = {
  * @param {ANode} aNode 抽象节点
  * @param {string} name 指令名称
  * @param {string} value 指令值
+ * @param {Object} options 解析参数
+ * @param {Array?} options.delimiters 插值分隔符列表
  */
-function parseDirective(aNode, name, value) {
+function parseDirective(aNode, name, value, options) {
+    if (name === 'else-if') {
+        name = 'elif';
+    }
+
     var parser = directiveParsers[name];
-
     if (parser) {
-        var result = parser(value);
-        result.name = name;
-        result.raw = value;
-
-        aNode.directives.push(result);
+        (aNode.directives[name] = parser(value, options)).raw = value;
     }
 }
 

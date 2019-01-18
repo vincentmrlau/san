@@ -29,12 +29,12 @@ describe("Slot", function () {
         myComponent.attach(wrap);
 
         expect(wrap.getElementsByTagName('u').length).toBe(1);
-        expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('foo');
+        expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('foo');
 
-        myComponent.data.set('foo', 'san');
+        myComponent.data.set('foo', 'errorrik');
         san.nextTick(function () {
             expect(wrap.getElementsByTagName('u').length).toBe(1);
-            expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('san');
+            expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('errorrik');
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -599,12 +599,12 @@ describe("Slot", function () {
         var lis = wrap.getElementsByTagName('li');
 
         var a1 = lis[0].getElementsByTagName('a')[0];
-        var b1 = a1.firstChild;
+        var b1 = a1.getElementsByTagName('b')[0];
         expect(a1.href).toBe('http://ecomfe.github.io/san/')
         expect(b1.title).toBe('website');
 
         var a2 = lis[1].getElementsByTagName('a')[0];
-        var b2 = a2.firstChild;
+        var b2 = a2.getElementsByTagName('b')[0];
         expect(a2.href).toBe('https://github.com/ecomfe/san')
         expect(b2.title).toBe('github');
 
@@ -614,17 +614,17 @@ describe("Slot", function () {
             var lis = wrap.getElementsByTagName('li');
 
             var a1 = lis[0].getElementsByTagName('a')[0];
-            var b1 = a1.firstChild;
+            var b1 = a1.getElementsByTagName('b')[0];
             expect(a1.href).toBe('http://ecomfe.github.io/san/')
             expect(b1.title).toBe('website');
 
             var a2 = lis[1].getElementsByTagName('a')[0];
-            var b2 = a2.firstChild;
+            var b2 = a2.getElementsByTagName('b')[0];
             expect(a2.href).toBe('https://github.com/ecomfe/san')
             expect(b2.title).toBe('github');
 
             var a3 = lis[2].getElementsByTagName('a')[0];
-            var b3 = a3.firstChild;
+            var b3 = a3.getElementsByTagName('b')[0];
             expect(a3.href).toBe('https://unpkg.com/san@latest')
             expect(b3.title).toBe('cdn');
 
@@ -679,7 +679,7 @@ describe("Slot", function () {
         expect(ps[0].title).toBe('oldone');
 
         var buttons = wrap.getElementsByTagName('button');
-        triggerEvent('#' + buttons[0].id, 'click');
+        triggerEvent(buttons[0], 'click');
 
         setTimeout(function () {
             var ps = wrap.getElementsByTagName('p');
@@ -726,12 +726,12 @@ describe("Slot", function () {
         var aEls = wrap.getElementsByTagName('a');
 
         var a1 = aEls[0];
-        var b1 = a1.firstChild;
+        var b1 = a1.getElementsByTagName('b')[0];
         expect(a1.href).toBe('http://ecomfe.github.io/san/')
         expect(b1.title).toBe('website');
 
         var a2 = aEls[1];
-        var b2 = a2.firstChild;
+        var b2 = a2.getElementsByTagName('b')[0];
         expect(a2.href).toBe('https://github.com/ecomfe/san')
         expect(b2.title).toBe('github');
 
@@ -741,17 +741,17 @@ describe("Slot", function () {
             var aEls = wrap.getElementsByTagName('a');
 
             var a1 = aEls[0];
-            var b1 = a1.firstChild;
+            var b1 = a1.getElementsByTagName('b')[0];
             expect(a1.href).toBe('http://ecomfe.github.io/san/')
             expect(b1.title).toBe('website');
 
             var a2 = aEls[1];
-            var b2 = a2.firstChild;
+            var b2 = a2.getElementsByTagName('b')[0];
             expect(a2.href).toBe('https://github.com/ecomfe/san')
             expect(b2.title).toBe('github');
 
             var a3 = aEls[2];
-            var b3 = a3.firstChild;
+            var b3 = a3.getElementsByTagName('b')[0];
             expect(a3.href).toBe('https://unpkg.com/san@latest')
             expect(b3.title).toBe('cdn');
 
@@ -831,7 +831,7 @@ describe("Slot", function () {
         expect(us[1].title.indexOf('123') >= 0).toBeFalsy();
 
         var button = wrap.getElementsByTagName('button')[0];
-        triggerEvent('#' + button.id, 'click');
+        triggerEvent(button, 'click');
 
 
         setTimeout(function () {
@@ -912,12 +912,12 @@ describe("Slot", function () {
         myComponent.attach(wrap);
 
         expect(wrap.getElementsByTagName('u').length).toBe(1);
-        expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('bar');
+        expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('bar');
 
         myComponent.data.set('bar', 'san');
         san.nextTick(function () {
             expect(wrap.getElementsByTagName('u').length).toBe(1);
-            expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('san');
+            expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('san');
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -1474,10 +1474,10 @@ describe("Slot", function () {
         document.body.appendChild(wrap);
         myComponent.attach(wrap);
 
-        expect(wrap.getElementsByTagName('p')[0].innerHTML).toBe('Errorrik,Male,Errorrik@gmail.com');
+        expect(wrap.getElementsByTagName('p')[0].innerHTML).toContain('Errorrik,Male,Errorrik@gmail.com');
         myComponent.data.set('man.email', 'erik168@163.com');
         san.nextTick(function () {
-            expect(wrap.getElementsByTagName('p')[0].innerHTML).toBe('Errorrik,Male,Erik168@163.com');
+            expect(wrap.getElementsByTagName('p')[0].innerHTML).toContain('Errorrik,Male,Erik168@163.com');
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -1616,15 +1616,15 @@ describe("Slot", function () {
         document.body.appendChild(wrap);
         myComponent.attach(wrap);
 
-        expect(wrap.getElementsByTagName('h3')[0].innerHTML).toBe('ERRORRIK');
-        expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('MALE');
-        expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('ERRORRIK@GMAIL.COM');
+        expect(wrap.getElementsByTagName('h3')[0].innerHTML).toContain('ERRORRIK');
+        expect(wrap.getElementsByTagName('b')[0].innerHTML).toContain('MALE');
+        expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('ERRORRIK@GMAIL.COM');
         myComponent.data.set('man.email', 'erik168@163.com');
         san.nextTick(function () {
 
-            expect(wrap.getElementsByTagName('h3')[0].innerHTML).toBe('ERRORRIK');
-            expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('MALE');
-            expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('ERIK168@163.COM');
+            expect(wrap.getElementsByTagName('h3')[0].innerHTML).toContain('ERRORRIK');
+            expect(wrap.getElementsByTagName('b')[0].innerHTML).toContain('MALE');
+            expect(wrap.getElementsByTagName('u')[0].innerHTML).toContain('ERIK168@163.COM');
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -1814,7 +1814,7 @@ describe("Slot", function () {
         san.nextTick(function () {
             expect(wrap.getElementsByTagName('p')[0].innerHTML).toBe('errorrik,male,erik168@163.com');
 
-            triggerEvent('#' + wrap.getElementsByTagName('p')[0].id, 'click');
+            triggerEvent(wrap.getElementsByTagName('p')[0], 'click');
             setTimeout(function () {
                 expect(clickInfo.email).toBe('erik168@163.com');
                 expect(clickInfo.outer).toBeFalsy();
@@ -1875,7 +1875,7 @@ describe("Slot", function () {
             expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('male');
             expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('erik168@163.com');
 
-            triggerEvent('#' + wrap.getElementsByTagName('u')[0].id, 'click');
+            triggerEvent(wrap.getElementsByTagName('u')[0], 'click');
             setTimeout(function () {
                 expect(clickInfo.email).toBe('erik168@163.com');
                 expect(clickInfo.outer).toBeTruthy();
@@ -1884,6 +1884,93 @@ describe("Slot", function () {
                 document.body.removeChild(wrap);
                 done();
             }, 500);
+        })
+    });
+
+    it("scoped by default content with s-bind", function (done) {
+        var Man = san.defineComponent({
+            template: '<div><slot s-bind="{n:data.name, email: data.email, sex: data.sex ? \'male\' : \'female\'}"><p>{{n}},{{sex}},{{email}}</p></slot></div>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-man': Man
+            },
+
+            template: '<div><x-man data="{{man}}"/></div>',
+
+            initData: function () {
+                return {
+                    man: {
+                        name: 'errorrik',
+                        sex: 1,
+                        email: 'errorrik@gmail.com'
+                    }
+                };
+            }
+        });
+
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        expect(wrap.getElementsByTagName('p')[0].innerHTML).toBe('errorrik,male,errorrik@gmail.com');
+        myComponent.data.set('man.email', 'erik168@163.com');
+        san.nextTick(function () {
+            expect(wrap.getElementsByTagName('p')[0].innerHTML).toBe('errorrik,male,erik168@163.com');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+
+    it("scoped by given content with s-bind and var-", function (done) {
+        var Man = san.defineComponent({
+            template: '<div><slot name="test" s-bind="{n:data.name, email: \'no@no.com\', sex: \'shemale\'}" var-email="data.email" var-sex="data.sex ? \'male\' : \'female\'"><p>{{n}},{{sex}},{{email}}</p></slot></div>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-man': Man
+            },
+
+            template: '<div><x-man data="{{man}}"><h3 slot="test">{{n}}</h3><b slot="test">{{sex}}</b><u slot="test">{{email}}</u></x-man></div>',
+
+            initData: function () {
+                return {
+                    man: {
+                        name: 'errorrik',
+                        sex: 1,
+                        email: 'errorrik@gmail.com'
+                    }
+                };
+            }
+        });
+
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        expect(wrap.getElementsByTagName('h3')[0].innerHTML).toBe('errorrik');
+        expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('male');
+        expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('errorrik@gmail.com');
+        myComponent.data.set('man.email', 'erik168@163.com');
+        myComponent.data.set('man.name', 'erik');
+        san.nextTick(function () {
+
+            expect(wrap.getElementsByTagName('h3')[0].innerHTML).toBe('erik');
+            expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('male');
+            expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('erik168@163.com');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
         })
     });
 
@@ -1942,7 +2029,7 @@ describe("Slot", function () {
         expect(!!folder.slot()[0].isInserted).toBeTruthy();
         expect(!!folder.slot()[0].isScoped).toBeFalsy();
         expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('contributor');
-        expect(wrap.getElementsByTagName('a')[0].innerHTML).toBe('X');
+        expect(wrap.getElementsByTagName('a')[0].innerHTML).toContain('X');
         expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('errorrik');
 
         myComponent.data.set('closeText', 'close');
@@ -1953,7 +2040,7 @@ describe("Slot", function () {
 
             expect(wrap.getElementsByTagName('b')[0].getAttribute('slot') == null).toBeTruthy();
             expect(wrap.getElementsByTagName('b')[0].innerHTML).toBe('member');
-            expect(wrap.getElementsByTagName('a')[0].innerHTML).toBe('close');
+            expect(wrap.getElementsByTagName('a')[0].innerHTML).toContain('close');
             expect(wrap.getElementsByTagName('u')[0].innerHTML).toBe('otakustay');
 
 
@@ -2101,8 +2188,8 @@ describe("Slot", function () {
 
         var lis = wrap.getElementsByTagName('li');
         expect(lis.length).toBe(4);
-        expect(lis[1].innerHTML).toBe('errorrik@gmail.com');
-        expect(lis[3].innerHTML).toBe('leeight@gmail.com');
+        expect(lis[1].innerHTML).toContain('errorrik@gmail.com');
+        expect(lis[3].innerHTML).toContain('leeight@gmail.com');
 
         myComponent.data.push('list', {name: 'otakustay', email: 'otakustay@gmail.com'});
         myComponent.data.set('list[0].email', 'erik168@163.com');
@@ -2114,8 +2201,8 @@ describe("Slot", function () {
 
             var lis = wrap.getElementsByTagName('li');
             expect(lis.length).toBe(6);
-            expect(lis[1].innerHTML).toBe('erik168@163.com');
-            expect(lis[5].innerHTML).toBe('otakustay@gmail.com');
+            expect(lis[1].innerHTML).toContain('erik168@163.com');
+            expect(lis[5].innerHTML).toContain('otakustay@gmail.com');
 
             myComponent.data.set('columns', [
                 {name: 'email', label: '邮'},
@@ -2130,9 +2217,9 @@ describe("Slot", function () {
 
                 var lis = wrap.getElementsByTagName('li');
                 expect(lis.length).toBe(6);
-                expect(lis[2].innerHTML).toBe('leeight@gmail.com');
-                expect(lis[0].innerHTML).toBe('erik168@163.com');
-                expect(lis[4].innerHTML).toBe('otakustay@gmail.com');
+                expect(lis[2].innerHTML).toContain('leeight@gmail.com');
+                expect(lis[0].innerHTML).toContain('erik168@163.com');
+                expect(lis[4].innerHTML).toContain('otakustay@gmail.com');
 
                 myComponent.dispose();
                 document.body.removeChild(wrap);
@@ -2208,10 +2295,10 @@ describe("Slot", function () {
 
         var lis = wrap.getElementsByTagName('li');
         expect(lis.length).toBe(8);
-        expect(lis[1].innerHTML).toBe('justineo@gmail.com');
-        expect(lis[3].innerHTML).toBe('errorrik@gmail.com');
-        expect(lis[4].innerHTML).toBe('otakustay');
-        expect(lis[6].innerHTML).toBe('leeight');
+        expect(lis[1].innerHTML).toContain('justineo@gmail.com');
+        expect(lis[3].innerHTML).toContain('errorrik@gmail.com');
+        expect(lis[4].innerHTML).toContain('otakustay');
+        expect(lis[6].innerHTML).toContain('leeight');
 
 
         myComponent.data.set('deps[0].strong', 'email');
@@ -2228,10 +2315,10 @@ describe("Slot", function () {
 
             var lis = wrap.getElementsByTagName('li');
             expect(lis.length).toBe(8);
-            expect(lis[0].innerHTML).toBe('Justineo');
-            expect(lis[2].innerHTML).toBe('otakustay');
-            expect(lis[4].innerHTML).toBe('leeight');
-            expect(lis[6].innerHTML).toBe('who');
+            expect(lis[0].innerHTML).toContain('Justineo');
+            expect(lis[2].innerHTML).toContain('otakustay');
+            expect(lis[4].innerHTML).toContain('leeight');
+            expect(lis[6].innerHTML).toContain('who');
 
             myComponent.data.set('deps[1].columns', [
                 {name: 'email', label: '邮'},
@@ -2248,10 +2335,10 @@ describe("Slot", function () {
 
                 var lis = wrap.getElementsByTagName('li');
                 expect(lis.length).toBe(8);
-                expect(lis[0].innerHTML).toBe('Justineo');
-                expect(lis[3].innerHTML).toBe('otakustay');
-                expect(lis[5].innerHTML).toBe('leeight');
-                expect(lis[7].innerHTML).toBe('who');
+                expect(lis[0].innerHTML).toContain('Justineo');
+                expect(lis[3].innerHTML).toContain('otakustay');
+                expect(lis[5].innerHTML).toContain('leeight');
+                expect(lis[7].innerHTML).toContain('who');
 
                 myComponent.data.set('deps[1].strong', 'name');
 
@@ -2503,5 +2590,86 @@ describe("Slot", function () {
                 });
             });
         })
+    });
+
+    it("has text sibling，mix inner text node", function (done) {
+        var Panel = san.defineComponent({
+            template: '<a>test<slot></slot>dddd</a>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-panel': Panel
+            },
+
+            template: '<u><x-panel>{{name}}</x-panel></u>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                name: 'HelloSan'
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var a = wrap.getElementsByTagName('a')[0];
+
+        expect(a.innerHTML).toContain('test');
+        expect(a.innerHTML).toContain('dddd');
+        expect(a.innerHTML).toContain('HelloSan');
+        myComponent.data.set('name', 'ByeER');
+
+        san.nextTick(function () {
+            expect(a.innerHTML).toContain('ByeER');
+            expect(a.innerHTML).toContain('test');
+            expect(a.innerHTML).toContain('dddd');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("has text sibling，mix inner text node, init with empty string", function (done) {
+        var Panel = san.defineComponent({
+            template: '<a>test<slot></slot>dddd</a>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-panel': Panel
+            },
+
+            template: '<u><x-panel>{{name}}</x-panel></u>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                name: ''
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var a = wrap.getElementsByTagName('a')[0];
+
+        expect(a.innerHTML).toContain('test');
+        expect(a.innerHTML).toContain('dddd');
+        myComponent.data.set('name', 'ByeER');
+
+        san.nextTick(function () {
+            expect(a.innerHTML).toContain('ByeER');
+            expect(a.innerHTML).toContain('test');
+            expect(a.innerHTML).toContain('dddd');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
     });
 });

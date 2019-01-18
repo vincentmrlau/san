@@ -1,12 +1,18 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 解析模板
- * @author errorrik(errorrik@gmail.com)
  */
 
 
 var createANode = require('./create-a-node');
 var Walker = require('./walker');
 var integrateAttr = require('./integrate-attr');
+var parseText = require('./parse-text');
+var svgTags = require('../browser/svg-tags');
 var autoCloseTags = require('../browser/auto-close-tags');
 
 // #[begin] error
@@ -30,6 +36,7 @@ function getXPath(stack, currentTagName) {
  * @param {string} source template源码
  * @param {Object?} options 解析参数
  * @param {string?} options.trimWhitespace 空白文本的处理策略。none|blank|all
+ * @param {Array?} options.delimiters 插值分隔符列表
  * @return {ANode}
  */
 function parseTemplate(source, options) {
@@ -46,7 +53,7 @@ function parseTemplate(source, options) {
     var walker = new Walker(source);
 
     var tagReg = /<(\/)?([a-z0-9-]+)\s*/ig;
-    var attrReg = /([-:0-9a-z\(\)\[\]]+)(\s*=\s*(['"])([^\3]*?)\3)?\s*/ig;
+    var attrReg = /([-:0-9a-z\[\]_]+)(\s*=\s*(['"])([^\3]*?)\3)?\s*/ig;
 
     var tagMatch;
     var currentNode = rootNode;
@@ -55,75 +62,74 @@ function parseTemplate(source, options) {
     var beforeLastIndex = 0;
 
     while ((tagMatch = walker.match(tagReg)) != null) {
+        var tagMatchStart = walker.index - tagMatch[0].length;
         var tagEnd = tagMatch[1];
-        var tagName = tagMatch[2].toLowerCase();
-
-        pushTextNode(source.slice(
-            beforeLastIndex,
-            walker.index - tagMatch[0].length
-        ));
+        var tagName = tagMatch[2];
+        if (!svgTags[tagName]) {
+            tagName = tagName.toLowerCase();
+        }
 
         // 62: >
         // 47: /
         // 处理 </xxxx >
-        if (tagEnd && walker.currentCode() === 62) {
-            // 满足关闭标签的条件时，关闭标签
-            // 向上查找到对应标签，找不到时忽略关闭
-            var closeIndex = stackIndex;
+        if (tagEnd) {
+            if (walker.currentCode() === 62) {
+                // 满足关闭标签的条件时，关闭标签
+                // 向上查找到对应标签，找不到时忽略关闭
+                var closeIndex = stackIndex;
 
+                // #[begin] error
+                // 如果正在闭合一个自闭合的标签，例如 </input>，报错
+                if (autoCloseTags[tagName]) {
+                    throw new Error(''
+                        + '[SAN ERROR] ' + getXPath(stack, tagName) + ' is a `auto closed` tag, '
+                        + 'so it cannot be closed with </' + tagName + '>'
+                    );
+                }
+
+                // 如果关闭的 tag 和当前打开的不一致，报错
+                if (
+                    stack[closeIndex].tagName !== tagName
+                    // 这里要把 table 自动添加 tbody 的情况给去掉
+                    && !(tagName === 'table' && stack[closeIndex].tagName === 'tbody')
+                ) {
+                    throw new Error('[SAN ERROR] ' + getXPath(stack) + ' is closed with ' + tagName);
+                }
+                // #[end]
+
+
+                pushTextNode(source.slice(beforeLastIndex, tagMatchStart));
+                while (closeIndex > 0 && stack[closeIndex].tagName !== tagName) {
+                    closeIndex--;
+                }
+
+                if (closeIndex > 0) {
+                    stackIndex = closeIndex - 1;
+                    currentNode = stack[stackIndex];
+                }
+                walker.go(1);
+            }
             // #[begin] error
-            // 如果正在闭合一个自闭合的标签，例如 </input>，报错
-            if (autoCloseTags[tagName]) {
-                throw new Error(''
-                    + '[SAN ERROR] ' + getXPath(stack, tagName) + ' is a `auto closed` tag, '
-                    + 'so it cannot be closed with </' + tagName + '>'
-                );
-            }
+            else {
+                // 处理 </xxx 非正常闭合标签
 
-            // 如果关闭的 tag 和当前打开的不一致，报错
-            if (
-                stack[closeIndex].tagName !== tagName
-                // 这里要把 table 自动添加 tbody 的情况给去掉
-                && !(tagName === 'table' && stack[closeIndex].tagName === 'tbody')
-            ) {
-                throw new Error('[SAN ERROR] ' + getXPath(stack) + ' is closed with ' + tagName);
-            }
-            // #[end]
+                // 如果闭合标签时，匹配后的下一个字符是 <，即下一个标签的开始，那么当前闭合标签未闭合
+                if (walker.currentCode() === 60) {
+                    throw new Error(''
+                        + '[SAN ERROR] ' + getXPath(stack)
+                        + '\'s close tag not closed'
+                    );
+                }
 
-            while (closeIndex > 0 && stack[closeIndex].tagName !== tagName) {
-                closeIndex--;
-            }
-
-            if (closeIndex > 0) {
-                stack.length = closeIndex;
-                stackIndex = closeIndex - 1;
-                currentNode = stack[stackIndex];
-            }
-            walker.go(1);
-        }
-
-        // #[begin] error
-        // 处理 </xxx 非正常闭合标签
-        else if (tagEnd) {
-
-            // 如果闭合标签时，匹配后的下一个字符是 <，即下一个标签的开始，那么当前闭合标签未闭合
-            if (walker.currentCode() === 60) {
+                // 闭合标签有属性
                 throw new Error(''
                     + '[SAN ERROR] ' + getXPath(stack)
-                    + '\'s close tag not closed'
+                    + '\'s close tag has attributes'
                 );
             }
-
-            // 闭合标签有属性
-            throw new Error(''
-                + '[SAN ERROR] ' + getXPath(stack)
-                + '\'s close tag has attributes'
-            );
-
+            // #[end]
         }
-        // #[end]
-
-        else if (!tagEnd) {
+        else {
             var aElement = createANode({
                 tagName: tagName
             });
@@ -143,12 +149,21 @@ function parseTemplate(source, options) {
                     walker.go(1);
                     break;
                 }
+
                 // 遇到 /> 按闭合处理
-                else if (nextCharCode === 47
+                if (nextCharCode === 47
                     && walker.charCode(walker.index + 1) === 62
                 ) {
                     walker.go(2);
                     tagClose = 1;
+                    break;
+                }
+
+                // template 串结束了
+                // 这时候，说明这个读取周期的所有内容，都是text
+                if (!nextCharCode) {
+                    pushTextNode(walker.cut(beforeLastIndex));
+                    aElement = null;
                     break;
                 }
 
@@ -179,53 +194,61 @@ function parseTemplate(source, options) {
                     integrateAttr(
                         aElement,
                         attrMatch[1],
-                        attrMatch[2] ? attrMatch[4] : ''
+                        attrMatch[2] ? attrMatch[4] : '',
+                        options
                     );
                 }
 
             }
 
-            // match if directive for else/elif directive
-            var elseDirective = aElement.directives.get('else') || aElement.directives.get('elif');
-            if (elseDirective) {
-                var parentChildrenLen = currentNode.children.length;
+            if (aElement) {
+                pushTextNode(source.slice(beforeLastIndex, tagMatchStart));
 
-                while (parentChildrenLen--) {
-                    var parentChild = currentNode.children[parentChildrenLen];
-                    if (parentChild.isText) {
-                        currentNode.children.splice(parentChildrenLen, 1);
-                        continue;
+                // match if directive for else/elif directive
+                var elseDirective = aElement.directives['else'] // eslint-disable-line dot-notation
+                    || aElement.directives.elif;
+
+                if (elseDirective) {
+                    var parentChildrenLen = currentNode.children.length;
+
+                    while (parentChildrenLen--) {
+                        var parentChild = currentNode.children[parentChildrenLen];
+                        if (parentChild.textExpr) {
+                            currentNode.children.splice(parentChildrenLen, 1);
+                            continue;
+                        }
+
+                        // #[begin] error
+                        if (!parentChild.directives['if']) { // eslint-disable-line dot-notation
+                            throw new Error('[SAN FATEL] else not match if.');
+                        }
+                        // #[end]
+
+                        parentChild.elses = parentChild.elses || [];
+                        parentChild.elses.push(aElement);
+
+                        break;
+                    }
+                }
+                else {
+                    if (aElement.tagName === 'tr' && currentNode.tagName === 'table') {
+                        var tbodyNode = createANode({
+                            tagName: 'tbody'
+                        });
+                        currentNode.children.push(tbodyNode);
+                        currentNode = tbodyNode;
+                        stack[++stackIndex] = tbodyNode;
                     }
 
-                    // #[begin] error
-                    if (!parentChild.directives.get('if')) {
-                        throw new Error('[SAN FATEL] else not match if.');
-                    }
-                    // #[end]
-
-                    parentChild.elses = parentChild.elses || [];
-                    parentChild.elses.push(aElement);
-
-                    break;
-                }
-            }
-            else {
-                if (aElement.tagName === 'tr' && currentNode.tagName === 'table') {
-                    var tbodyNode = createANode({
-                        tagName: 'tbody'
-                    });
-                    currentNode.children.push(tbodyNode);
-                    currentNode = tbodyNode;
-                    stack[++stackIndex] = tbodyNode;
+                    currentNode.children.push(aElement);
                 }
 
-                currentNode.children.push(aElement);
+                if (!tagClose) {
+                    currentNode = aElement;
+                    stack[++stackIndex] = aElement;
+                }
             }
 
-            if (!tagClose) {
-                currentNode = aElement;
-                stack[++stackIndex] = aElement;
-            }
         }
 
         beforeLastIndex = walker.index;
@@ -256,8 +279,7 @@ function parseTemplate(source, options) {
 
         if (text) {
             currentNode.children.push(createANode({
-                isText: 1,
-                text: text
+                textExpr: parseText(text, options.delimiters)
             }));
         }
     }

@@ -1,20 +1,23 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 更新元素的子元素视图
- * @author errorrik(errorrik@gmail.com)
  */
 
-var each = require('../util/each');
 
 /**
  * 更新元素的子元素视图
  *
- * @param {Object} element 要更新的元素
+ * @param {Array} children 子元素列表
  * @param {Array} changes 数据变化信息
  */
-function elementUpdateChildren(element, changes) {
-    each(element.children, function (child) {
-        child._update(changes);
-    });
+function elementUpdateChildren(children, changes) {
+    for (var i = 0, l = children.length; i < l; i++) {
+        children[i]._update(changes);
+    }
 }
 
 exports = module.exports = elementUpdateChildren;

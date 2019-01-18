@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 为元素的 el 绑定事件
- * @author errorrik(errorrik@gmail.com)
  */
 
 var on = require('../browser/on');
@@ -15,13 +19,8 @@ var on = require('../browser/on');
 function elementOwnOnEl(name, listener, capture) {
     if (typeof listener === 'function') {
         capture = !!capture;
-
-        if (!this._elFns[name]) {
-            this._elFns[name] = [];
-        }
-        this._elFns[name].push([listener, capture]);
-
-        on(this._getEl(), name, listener, capture);
+        this._elFns.push([name, listener, capture]);
+        on(this.el, name, listener, capture);
     }
 }
 

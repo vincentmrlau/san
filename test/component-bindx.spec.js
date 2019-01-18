@@ -567,7 +567,7 @@ describe("Component-TwoWay Binding", function () {
         expect(bs[1].title).toBe('blue');
 
         var inputs = wrap.getElementsByTagName('input');
-        triggerEvent('#' + inputs[0].id, 'input', 'yellow');
+        triggerEvent(inputs[0], 'input', 'yellow');
 
         setTimeout(function () {
             var bs = wrap.getElementsByTagName('b');
@@ -583,19 +583,19 @@ describe("Component-TwoWay Binding", function () {
     it("child component set default value in inited, owner should update", function (done) {
         var Input = san.defineComponent({
             template: '<input value="{=value=}">',
-          
+
             inited: function () {
               if (!this.data.get('value')) {
                 this.data.set('value', 'default');
               }
             }
         });
-          
+
         var MyComponent = san.defineComponent({
             components: {
               'x-input': Input
             },
-            template: '<div><b>{{name}}</b><x-input value="{=name=}"/><span>{{name}}</span></div>',
+            template: '<div><b>{{name}}</b><x-input value="{=name=}"/><span>{{name}}</span></div>'
         });
         var myComponent = new MyComponent();
         expect(myComponent.data.get('name') == null).toBeTruthy();

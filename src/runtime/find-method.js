@@ -1,9 +1,12 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 在对象上使用accessor表达式查找方法
- * @author errorrik(errorrik@gmail.com)
  */
 
-var each = require('../util/each');
 var evalExpr = require('../runtime/eval-expr');
 
 /**
@@ -16,10 +19,10 @@ var evalExpr = require('../runtime/eval-expr');
  */
 function findMethod(source, nameExpr, data) {
     var method = source;
-    each(nameExpr.paths, function (pathExpr) {
-        method = method[evalExpr(pathExpr, data)];
-        return method != null;
-    });
+
+    for (var i = 0; method != null && i < nameExpr.paths.length; i++) {
+        method = method[evalExpr(nameExpr.paths[i], data)];
+    }
 
     return method;
 }

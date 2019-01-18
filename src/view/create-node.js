@@ -1,16 +1,20 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 创建节点的工厂方法
- * @author errorrik(errorrik@gmail.com)
  */
 
-
-var isComponent = require('./is-component');
-var createText = require('./create-text');
-var createElement = require('./create-element');
-var createSlot = require('./create-slot');
-var createFor = require('./create-for');
-var createIf = require('./create-if');
-var createTemplate = require('./create-template');
+var NodeType = require('./node-type');
+var TextNode = require('./text-node');
+var Element = require('./element');
+var SlotNode = require('./slot-node');
+var ForNode = require('./for-node');
+var IfNode = require('./if-node');
+var TemplateNode = require('./template-node');
+var AsyncComponent = require('./async-component');
 
 
 /**
@@ -22,42 +26,55 @@ var createTemplate = require('./create-template');
  * @return {Node}
  */
 function createNode(aNode, parent, scope) {
-    var owner = isComponent(parent) ? parent : (parent.childOwner || parent.owner);
-    scope = scope || (isComponent(parent) ? parent.data : (parent.childScope || parent.scope));
-    var options = {
-        aNode: aNode,
-        owner: owner,
-        scope: scope,
-        parent: parent
-    };
+    var parentIsComponent = parent.nodeType === NodeType.CMPT;
+    var owner = parentIsComponent ? parent : (parent.childOwner || parent.owner);
+    scope = scope || (parentIsComponent ? parent.data : (parent.childScope || parent.scope));
 
-    if (aNode.isText) {
-        return createText(options);
+
+    if (aNode.textExpr) {
+        return new TextNode(aNode, owner, scope, parent);
     }
 
-    if (aNode.directives.get('if')) {
-        return createIf(options);
+    if (aNode.directives['if']) { // eslint-disable-line dot-notation
+        return new IfNode(aNode, owner, scope, parent);
     }
 
-    if (aNode.directives.get('for')) {
-        return createFor(options);
-    }
-
-    var ComponentType = owner.components[aNode.tagName];
-    if (ComponentType) {
-        options.subTag = aNode.tagName;
-        return new ComponentType(options);
+    if (aNode.directives['for']) { // eslint-disable-line dot-notation
+        return new ForNode(aNode, owner, scope, parent);
     }
 
     switch (aNode.tagName) {
         case 'slot':
-            return createSlot(options);
+            return new SlotNode(aNode, owner, scope, parent);
 
         case 'template':
-            return createTemplate(options);
+            return new TemplateNode(aNode, owner, scope, parent);
+
+        default:
+            var ComponentOrLoader = owner.getComponentType
+                ? owner.getComponentType(aNode)
+                : owner.components[aNode.tagName];
+
+            if (ComponentOrLoader) {
+                return typeof ComponentOrLoader === 'function'
+                    ? new ComponentOrLoader({
+                        source: aNode,
+                        owner: owner,
+                        scope: scope,
+                        parent: parent,
+                        subTag: aNode.tagName
+                    })
+                    : new AsyncComponent({
+                        source: aNode,
+                        owner: owner,
+                        scope: scope,
+                        parent: parent,
+                        subTag: aNode.tagName
+                    }, ComponentOrLoader);
+            }
     }
 
-    return createElement(options);
+    return new Element(aNode, owner, scope, parent);
 }
 
 exports = module.exports = createNode;

@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file DOM 事件挂载
- * @author errorrik(errorrik@gmail.com)
  */
 
 /**
@@ -13,12 +17,16 @@
  * @param {boolean} capture 是否是捕获阶段
  */
 function on(el, eventName, listener, capture) {
+    // #[begin] allua
     if (el.addEventListener) {
+    // #[end]
         el.addEventListener(eventName, listener, capture);
+    // #[begin] allua
     }
     else {
         el.attachEvent('on' + eventName, listener);
     }
+    // #[end]
 }
 
 exports = module.exports = on;

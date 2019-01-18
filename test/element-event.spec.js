@@ -45,7 +45,7 @@ describe("Element-Event", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + span.id, 'click');
+        triggerEvent(span, 'click');
 
         doneSpec();
 
@@ -83,8 +83,8 @@ describe("Element-Event", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + span.id, 'click');
-        triggerEvent('#' + spanNoArgs.id, 'click');
+        triggerEvent(span, 'click');
+        triggerEvent(spanNoArgs, 'click');
         doneSpec();
     });
 
@@ -121,16 +121,66 @@ describe("Element-Event", function () {
 
         function doneSpec() {
             if (clicked === 1) {
-                done();
                 myComponent.dispose();
                 document.body.removeChild(wrap);
+                done();
+
                 return;
             }
             setTimeout(doneSpec, 500);
         }
         // 两次点击，期望只有第一次nativeEvent的点击生效
-        triggerEvent('#' + nativeChildEl.id, 'click');
-        triggerEvent('#' + childEl.id, 'click');
+        triggerEvent(nativeChildEl, 'click');
+        triggerEvent(childEl, 'click');
+        doneSpec();
+    });
+
+    it("native bind dont be invoked in fire", function (done) {
+        var inCount = 0;
+        var outCount = 0;
+        var Checkbox = san.defineComponent({
+            template: '<input type="checkbox" on-click="clicker" />',
+
+            clicker: function () {
+                inCount++;
+                this.fire('click');
+            }
+        });
+
+        var MyComponent = san.defineComponent({
+            template: '<div><label><x-checkbox on-click="native:onNativeClick"/>Click me and see console</label></div>',
+
+            components: {
+                'x-checkbox': Checkbox
+            },
+
+            onNativeClick: function () {
+                outCount++;
+            }
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var input = wrap.getElementsByTagName('input')[0];
+
+        function doneSpec() {
+            if (inCount > 0) {
+                expect(inCount).toBe(1);
+                expect(outCount).toBe(1);
+
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                done();
+                return;
+            }
+
+            setTimeout(doneSpec, 500);
+        }
+
+        triggerEvent(input, 'click');
         doneSpec();
     });
 
@@ -183,9 +233,9 @@ describe("Element-Event", function () {
             }
             setTimeout(doneSpec, 500);
         }
-        triggerEvent('#' + aBtn.id, 'click');
-        triggerEvent('#' + bBtn.id, 'click');
-        triggerEvent('#' + cBtn.id, 'click');
+        triggerEvent(aBtn, 'click');
+        triggerEvent(bBtn, 'click');
+        triggerEvent(cBtn, 'click');
         doneSpec();
     });
 
@@ -237,7 +287,7 @@ describe("Element-Event", function () {
             setTimeout(doneSpec, 500);
         }
 
-        triggerEvent('#' + span.id, 'click');
+        triggerEvent(span, 'click');
 
         doneSpec();
 

@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 数据类
- * @author errorrik(errorrik@gmail.com)
  */
 
 var ExprType = require('../parser/expr-type');
@@ -8,7 +12,8 @@ var evalExpr = require('./eval-expr');
 var DataChangeType = require('./data-change-type');
 var createAccessor = require('../parser/create-accessor');
 var parseExpr = require('../parser/parse-expr');
-var each = require('../util/each');
+var guid = require('../util/guid');
+var dataCache = require('./data-cache');
 
 /**
  * 数据类
@@ -18,6 +23,7 @@ var each = require('../util/each');
  * @param {Model?} parent 父级数据容器
  */
 function Data(data, parent) {
+    this.id = guid();
     this.parent = parent;
     this.raw = data || {};
     this.listeners = [];
@@ -80,18 +86,19 @@ Data.prototype.fire = function (change) {
         return;
     }
 
-    each(this.listeners, function (listener) {
-        listener.call(this, change);
-    }, this);
+    for (var i = 0; i < this.listeners.length; i++) {
+        this.listeners[i].call(this, change);
+    }
 };
 
 /**
  * 获取数据项
  *
  * @param {string|Object?} expr 数据项路径
+ * @param {Data?} callee 当前数据获取的调用环境
  * @return {*}
  */
-Data.prototype.get = function (expr) {
+Data.prototype.get = function (expr, callee) {
     var value = this.raw;
     if (!expr) {
         return value;
@@ -100,26 +107,17 @@ Data.prototype.get = function (expr) {
     expr = parseExpr(expr);
 
     var paths = expr.paths;
-    var start = 0;
-    var l = paths.length;
+    callee = callee || this;
 
-    for (; start < l; start++) {
-        if (paths[start].value == null) {
-            break;
-        }
-    }
-
-    var i = 0;
-    for (; value != null && i < start; i++) {
-        value = value[paths[i].value];
-    }
+    value = value[paths[0].value];
 
     if (value == null && this.parent) {
-        value = this.parent.get(createAccessor(paths.slice(0, start)));
+        value = this.parent.get(expr, callee);
     }
-
-    for (i = start; value != null && i < l; i++) {
-        value = value[evalExpr(paths[i], this)];
+    else {
+        for (var i = 1, l = paths.length; value != null && i < l; i++) {
+            value = value[paths[i].value || evalExpr(paths[i], callee)];
+        }
     }
 
     return value;
@@ -136,21 +134,25 @@ Data.prototype.get = function (expr) {
  * @param {Data} data 对应的Data对象
  * @return {*} 变更后的新数据
  */
-function immutableSet(source, exprPaths, value, data) {
-    if (exprPaths.length === 0) {
+function immutableSet(source, exprPaths, pathsStart, pathsLen, value, data) {
+    if (pathsStart >= pathsLen) {
         return value;
     }
 
-    var prop = evalExpr(exprPaths[0], data);
-    var result;
+    if (source == null) {
+        source = {};
+    }
+
+    var pathExpr = exprPaths[pathsStart];
+    var prop = evalExpr(pathExpr, data);
+    var result = source;
 
     if (source instanceof Array) {
         var index = +prop;
+        prop = isNaN(index) ? prop : index;
 
         result = source.slice(0);
-        result[isNaN(index) ? prop : index] = immutableSet(source[index], exprPaths.slice(1), value, data);
-
-        return result;
+        result[prop] = immutableSet(source[prop], exprPaths, pathsStart + 1, pathsLen, value, data);
     }
     else if (typeof source === 'object') {
         result = {};
@@ -161,12 +163,17 @@ function immutableSet(source, exprPaths, value, data) {
             }
         }
 
-        result[prop] = immutableSet(source[prop] || {}, exprPaths.slice(1), value, data);
-
-        return result;
+        result[prop] = immutableSet(source[prop], exprPaths, pathsStart + 1, pathsLen, value, data);
     }
 
-    return source;
+    if (pathExpr.value == null) {
+        exprPaths[pathsStart] = {
+            type: typeof prop === 'string' ? ExprType.STRING : ExprType.NUMBER,
+            value: prop
+        };
+    }
+
+    return result;
 }
 
 /**
@@ -192,11 +199,14 @@ Data.prototype.set = function (expr, value, option) {
     }
     // #[end]
 
-    if (this.get(expr) === value) {
+    if (this.get(expr) === value && !option.force) {
         return;
     }
 
-    this.raw = immutableSet(this.raw, expr.paths, value, this);
+    expr = createAccessor(expr.paths.slice(0));
+
+    dataCache.clear();
+    this.raw = immutableSet(this.raw, expr.paths, 0, expr.paths.length, value, this);
     this.fire({
         type: DataChangeType.SET,
         expr: expr,
@@ -241,23 +251,21 @@ Data.prototype.merge = function (expr, source, option) {
     }
     // #[end]
 
-    for (var key in source) {
-        if (source.hasOwnProperty(key)) {
-            this.set(
-                createAccessor(
-                    expr.paths.concat(
-                        [
-                            {
-                                type: ExprType.STRING,
-                                value: key
-                            }
-                        ]
-                    )
-                ),
-                source[key],
-                option
-            );
-        }
+    for (var key in source) { // eslint-disable-line
+        this.set(
+            createAccessor(
+                expr.paths.concat(
+                    [
+                        {
+                            type: ExprType.STRING,
+                            value: key
+                        }
+                    ]
+                )
+            ),
+            source[key],
+            option
+        );
     }
 };
 
@@ -270,8 +278,6 @@ Data.prototype.merge = function (expr, source, option) {
  * @param {boolean} option.silent 静默设置，不触发变更事件
  */
 Data.prototype.apply = function (expr, fn, option) {
-    option = option || {};
-
     // #[begin] error
     var exprRaw = expr;
     // #[end]
@@ -295,13 +301,7 @@ Data.prototype.apply = function (expr, fn, option) {
     }
     // #[end]
 
-    var value = fn(oldValue);
-
-    if (oldValue === value) {
-        return;
-    }
-
-    this.set(expr, value, option);
+    this.set(expr, fn(oldValue), option);
 };
 
 /**
@@ -332,13 +332,24 @@ Data.prototype.splice = function (expr, args, option) {
 
     if (target instanceof Array) {
         var index = args[0];
-        if (index < 0 || index > target.length) {
-            return;
+        var len = target.length;
+        if (index > len) {
+            index = len;
+        }
+        else if (index < 0) {
+            index = len + index;
+            if (index < 0) {
+                index = 0;
+            }
         }
 
         var newArray = target.slice(0);
         returnValue = newArray.splice.apply(newArray, args);
-        this.raw = immutableSet(this.raw, expr.paths, newArray, this);
+
+        expr = createAccessor(expr.paths.slice(0));
+
+        dataCache.clear();
+        this.raw = immutableSet(this.raw, expr.paths, 0, expr.paths.length, newArray, this);
 
         this.fire({
             expr: expr,

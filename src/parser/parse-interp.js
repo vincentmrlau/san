@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 解析插值替换
- * @author errorrik(errorrik@gmail.com)
  */
 
 var Walker = require('./walker');
@@ -16,18 +20,28 @@ var readCall = require('./read-call');
  */
 function parseInterp(source) {
     var walker = new Walker(source);
-    var expr = readTertiaryExpr(walker);
 
-    var filters = [];
+    var interp = {
+        type: ExprType.INTERP,
+        expr: readTertiaryExpr(walker),
+        filters: [],
+        raw: source
+    };
+
     while (walker.goUntil(124)) { // |
-        filters.push(readCall(walker));
+        var callExpr = readCall(walker, []);
+        switch (callExpr.name.paths[0].value) {
+            case 'html':
+                break;
+            case 'raw':
+                interp.original = 1;
+                break;
+            default:
+                interp.filters.push(callExpr);
+        }
     }
 
-    return {
-        type: ExprType.INTERP,
-        expr: expr,
-        filters: filters
-    };
+    return interp;
 }
 
 exports = module.exports = parseInterp;

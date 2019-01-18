@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 获取节点在组件树中的路径
- * @author errorrik(errorrik@gmail.com)
  */
 
 
@@ -27,7 +31,7 @@ function getNodePath(node) {
                 break;
 
             case NodeType.FOR:
-                nodePaths.unshift('for[' + nodeParent.anode.directive.get('for').raw + ']');
+                nodePaths.unshift('for[' + nodeParent.anode.directives['for'].raw + ']'); // eslint-disable-line dot-notation
                 break;
 
             case NodeType.SLOT:

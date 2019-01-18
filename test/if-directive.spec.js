@@ -373,6 +373,51 @@ describe("IfDirective", function () {
         });
     });
 
+    it("else-if alias elif", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div><span s-if="num > 10000" title="biiig">biiig</span>  \n'
+                + '<span s-else-if="num > 1000" title="biig">biig</span>  \n'
+                + '<span s-else-if="num > 100" title="big">big</span>  \n'
+                + ' <b s-else title="small">small</b></div>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                num: 300
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+
+        var spans = wrap.getElementsByTagName('span');
+        expect(spans.length).toBe(1);
+        expect(spans[0].title).toBe('big');
+        expect(wrap.getElementsByTagName('b').length).toBe(0);
+
+        myComponent.data.set('num', 30000);
+
+        san.nextTick(function () {
+            var spans = wrap.getElementsByTagName('span');
+            expect(spans.length).toBe(1);
+            expect(spans[0].title).toBe('biiig');
+            expect(wrap.getElementsByTagName('b').length).toBe(0);
+
+            myComponent.data.set('num', 10);
+            san.nextTick(function () {
+                var spans = wrap.getElementsByTagName('span');
+                expect(spans.length).toBe(0);
+                var bs = wrap.getElementsByTagName('b');
+                expect(bs[0].title).toBe('small');
+
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                done();
+            });
+        });
+    });
+
     it("multi elif", function (done) {
         var MyComponent = san.defineComponent({
             template: '<div><span s-if="num > 10000" title="biiig">biiig</span>  \n'
@@ -476,7 +521,7 @@ describe("IfDirective", function () {
 
     it("and else with disabled", function (done) {
         var MyComponent = san.defineComponent({
-            template: '<div><input type="radio"s-if="cond" disabled="{{true}}">'
+            template: '<div><input type="radio" s-if="cond" disabled="{{true}}">'
                 + '<input type="checkbox" s-else disabled="{{true}}"></div>'
         });
         var myComponent = new MyComponent();
@@ -686,12 +731,12 @@ describe("IfDirective", function () {
 
         var ps = wrap.getElementsByTagName('p');
         expect(ps.length).toBe(3);
-        expect(ps[0].innerHTML).toBe('one');
-        expect(ps[1].innerHTML).toBe('two');
-        expect(ps[2].innerHTML).toBe('three');
+        expect(/one/.test(ps[0].innerHTML)).toBeTruthy();
+        expect(/two/.test(ps[1].innerHTML)).toBeTruthy();
+        expect(/three/.test(ps[2].innerHTML)).toBeTruthy();
 
         var wrapHTML = wrap.innerHTML.toLowerCase();
-        expect(wrapHTML.indexOf('<h3 ') < wrapHTML.indexOf('<p ')).toBeTruthy();
+        expect(wrapHTML.indexOf('<h3') < wrapHTML.indexOf('<p')).toBeTruthy();
         myComponent.data.set('cond', false);
 
         san.nextTick(function () {
@@ -703,12 +748,13 @@ describe("IfDirective", function () {
             san.nextTick(function () {
                 var ps = wrap.getElementsByTagName('p');
                 expect(ps.length).toBe(3);
-                expect(ps[0].innerHTML).toBe('one');
-                expect(ps[1].innerHTML).toBe('two');
-                expect(ps[2].innerHTML).toBe('three');
+
+                expect(/one/.test(ps[0].innerHTML)).toBeTruthy();
+                expect(/two/.test(ps[1].innerHTML)).toBeTruthy();
+                expect(/three/.test(ps[2].innerHTML)).toBeTruthy();
 
                 var wrapHTML = wrap.innerHTML.toLowerCase();
-                expect(wrapHTML.indexOf('<h3 ') < wrapHTML.indexOf('<p ')).toBeTruthy();
+                expect(wrapHTML.indexOf('<h3') < wrapHTML.indexOf('<p')).toBeTruthy();
                 myComponent.dispose();
                 document.body.removeChild(wrap);
                 done();
@@ -1083,6 +1129,51 @@ describe("IfDirective", function () {
 
                 myComponent.dispose();
                 document.body.removeChild(wrap);
+                done();
+            });
+        });
+    });
+
+    it("with call expr", function (done) {
+
+        var MyComponent = san.defineComponent({
+            template: '<div><u s-if="isWorking(time)">work</u><b s-else>rest</b></div>',
+
+            isWorking: function (time) {
+                if (time < 9 || time > 18) {
+                    return false;
+                }
+
+                return true;
+            }
+        });
+        var myComponent = new MyComponent({
+            data: {
+                time: 8
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        expect(wrap.getElementsByTagName('u').length).toBe(0);
+        expect(wrap.getElementsByTagName('b').length).toBe(1);
+
+        myComponent.data.set('time', 16);
+        san.nextTick(function () {
+
+            expect(wrap.getElementsByTagName('u').length).toBe(1);
+            expect(wrap.getElementsByTagName('b').length).toBe(0);
+            myComponent.data.set('time', 19);
+
+            san.nextTick(function () {
+                expect(wrap.getElementsByTagName('u').length).toBe(0);
+                expect(wrap.getElementsByTagName('b').length).toBe(1);
+
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+
                 done();
             });
         });

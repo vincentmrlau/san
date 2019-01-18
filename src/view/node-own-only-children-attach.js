@@ -1,12 +1,15 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 将没有 root 只有 children 的元素 attach 到页面
- * @author errorrik(errorrik@gmail.com)
  */
 
 
-var each = require('../util/each');
-var createNode = require('./create-node');
-var attachings = require('./attachings');
+var insertBefore = require('../browser/insert-before');
+var genElementChildren = require('./gen-element-children');
 
 
 /**
@@ -17,16 +20,15 @@ var attachings = require('./attachings');
  * @param {HTMLElement＝} beforeEl 要添加到哪个元素之前
  */
 function nodeOwnOnlyChildrenAttach(parentEl, beforeEl) {
-    var me = this;
-    each(this.aNode.children, function (aNodeChild) {
-        var child = createNode(aNodeChild, me);
-        if (!child._static) {
-            me.children.push(child);
-        }
-        child.attach(parentEl, beforeEl);
-    });
+    this.sel = document.createComment(this.id);
+    insertBefore(this.sel, parentEl, beforeEl);
 
-    attachings.done();
+    genElementChildren(this, parentEl, beforeEl);
+
+    this.el = document.createComment(this.id);
+    insertBefore(this.el, parentEl, beforeEl);
+
+    this._toPhase('attached');
 }
 
 exports = module.exports = nodeOwnOnlyChildrenAttach;

@@ -1,12 +1,15 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 将元素attach到页面
- * @author errorrik(errorrik@gmail.com)
  */
 
-var createStrBuffer = require('../runtime/create-str-buffer');
-var stringifyStrBuffer = require('../runtime/stringify-str-buffer');
-var genElementChildrenHTML = require('./gen-element-children-html');
-var warnSetHTML = require('./warn-set-html');
+var genElementChildren = require('./gen-element-children');
+var evalExpr = require('../runtime/eval-expr');
+var insertBefore = require('../browser/insert-before');
 
 /**
  * 将元素attach到页面
@@ -17,27 +20,16 @@ var warnSetHTML = require('./warn-set-html');
  */
 function elementAttach(element, parentEl, beforeEl) {
     element._create();
-    if (parentEl) {
-        if (beforeEl) {
-            parentEl.insertBefore(element.el, beforeEl);
-        }
-        else {
-            parentEl.appendChild(element.el);
-        }
-    }
+    insertBefore(element.el, parentEl, beforeEl);
 
     if (!element._contentReady) {
-        var buf = createStrBuffer();
-        genElementChildrenHTML(element, buf);
+        var htmlDirective = element.aNode.directives.html;
 
-        // html 没内容就不要设置 innerHTML了
-        // 这里还能避免在 IE 下 component root 为 input 等元素时设置 innerHTML 报错的问题
-        var html = stringifyStrBuffer(buf);
-        if (html) {
-            // #[begin] error
-            warnSetHTML(element.el);
-            // #[end]
-            element.el.innerHTML = html;
+        if (htmlDirective) {
+            element.el.innerHTML = evalExpr(htmlDirective.value, element.scope, element.owner);
+        }
+        else {
+            genElementChildren(element);
         }
 
         element._contentReady = 1;

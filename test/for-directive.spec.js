@@ -525,7 +525,7 @@ describe("ForDirective", function () {
         });
     });
 
-    it("data push after attach", function (done) {
+    it("data push after attach, simple loop", function (done) {
         var MyComponent = san.defineComponent({
             template: '<ul><li>name - email</li><li san-for="p,i in persons" title="{{p.name}} {{i+1}}/{{persons.length}}">{{p.name}} - {{p.email}}</li><li>name - email</li></ul>'
         });
@@ -560,7 +560,7 @@ describe("ForDirective", function () {
         });
     });
 
-    it("data push after attach", function (done) {
+    it("data push after attach, nest loop", function (done) {
         var MyComponent = san.defineComponent({
             template: '<div><ul san-for="col in cols">'
                 + '<li san-for="item in col.list" title="{{item.title}}">{{item.title}}</li>'
@@ -817,6 +817,49 @@ describe("ForDirective", function () {
         });
     });
 
+    it("data splice after attach, with negative start", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li>name - email</li><li san-for="p,i in persons" title="{{p.name}} {{i+1}}/{{persons.length}}">{{p.name}} - {{p.email}}</li><li>name - email</li></ul>'
+        });
+        var myComponent = new MyComponent();
+        myComponent.data.set('persons', [
+            { name: 'one', email: 'one@gmail.com' },
+            { name: 'two', email: 'two@gmail.com' },
+            { name: 'three', email: 'three@gmail.com' },
+            { name: 'four', email: 'four@gmail.com' },
+            { name: 'five', email: 'five@gmail.com' }
+        ]);
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(7);
+        expect(lis[1].getAttribute('title')).toBe('one 1/5');
+        expect(lis[2].getAttribute('title')).toBe('two 2/5');
+
+        myComponent.data.splice('persons', [
+            -4, 3,
+            { name: 'six', email: 'six@gmail.com' },
+            { name: 'seven', email: 'seven@gmail.com' }
+        ]);
+
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(6);
+            expect(lis[1].getAttribute('title')).toBe('one 1/4');
+            expect(lis[2].getAttribute('title')).toBe('six 2/4');
+            expect(lis[3].getAttribute('title')).toBe('seven 3/4');
+            expect(lis[4].getAttribute('title')).toBe('five 4/4');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
     it("data set after attach", function (done) {
         var MyComponent = san.defineComponent({
             template: '<ul><li>name - email</li><li san-for="p,i in persons" title="{{p.name}} {{i+1}}/{{persons.length}}">{{p.name}} - {{p.email}}</li><li>name - email</li></ul>'
@@ -849,6 +892,54 @@ describe("ForDirective", function () {
         });
     });
 
+    it("data set after attach, use list[index] in interp", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li>name - email</li><li san-for="p,i in persons" title="{{persons[i].name}} {{i+1}}/{{persons.length}}">{{persons[i].name}} - {{p.email}}</li><li>name - email</li></ul>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                persons: [
+                    { name: 'errorrik', email: 'errorrik@gmail.com' },
+                    { name: 'varsha', email: 'wangshuonpu@163.com' }
+                ]
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(4);
+        expect(lis[1].getAttribute('title')).toBe('errorrik 1/2');
+
+        myComponent.data.set('persons[0]', { name: 'erik', email: 'erik168@163.com' });
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(4);
+            expect(lis[1].getAttribute('title')).toBe('erik 1/2');
+            expect(lis[1].innerHTML.indexOf('erik - erik168@163.com')).toBe(0);
+
+            expect(lis[2].getAttribute('title')).toBe('varsha 2/2');
+            expect(lis[2].innerHTML.indexOf('varsha - wangshuonpu@163.com')).toBe(0);
+
+            myComponent.data.set('persons[1].name', 'wsh');
+
+            san.nextTick(function () {
+                expect(lis.length).toBe(4);
+                expect(lis[1].getAttribute('title')).toBe('erik 1/2');
+                expect(lis[1].innerHTML.indexOf('erik - erik168@163.com')).toBe(0);
+
+                expect(lis[2].getAttribute('title')).toBe('wsh 2/2');
+                expect(lis[2].innerHTML.indexOf('wsh - wangshuonpu@163.com')).toBe(0);
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                done();
+            });
+        });
+    });
+
     it("data set null after attach, has no sibling", function (done) {
         var MyComponent = san.defineComponent({
             template: '<ul><li san-for="p,i in persons" title="{{p.name}} {{i+1}}/{{persons.length}}">{{p.name}} - {{p.email}}</li></ul>'
@@ -872,6 +963,42 @@ describe("ForDirective", function () {
         san.nextTick(function () {
             var lis = wrap.getElementsByTagName('li');
             expect(lis.length).toBe(0);
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("data set after attach, index overflow", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li>name</li><li san-for="p,i in persons">{{i+1}}-{{p}}</li><li>name</li></ul>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                persons: ['errorrik', 'varsha']
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(4);
+        expect(lis[1].innerHTML).toBe('1-errorrik');
+        expect(lis[2].innerHTML).toBe('2-varsha');
+
+        myComponent.data.set('persons[0]', 'erik');
+        myComponent.data.set('persons[3]', 'otakustay');
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(6);
+            expect(lis[1].innerHTML).toBe('1-erik');
+            expect(lis[2].innerHTML).toBe('2-varsha');
+            expect(lis[3].innerHTML).toBe('3-');
+            expect(lis[4].innerHTML).toBe('4-otakustay');
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -910,13 +1037,7 @@ describe("ForDirective", function () {
         });
     });
 
-    it("data set after attach, for in tr should warning parent(tbody) in chrome", function (done) {
-        // dont run this spec in ie
-        if (/msie/i.test(navigator.userAgent)) {
-            done();
-            return;
-        }
-
+    it("data set after attach, for directive in tr tag", function (done) {
         var MyComponent = san.defineComponent({
             template: '<div><table><thead><tr><th>name</th><th>email</th></tr></thead>' +
                 '<tbody><tr title="{{p.name}}" san-for="p,i in persons"><td>{{p.name}}</td><td>{{p.email}}</td></tr></tbody></table></div>'
@@ -1406,7 +1527,7 @@ describe("ForDirective", function () {
         expect(clickValue).toBe(0);
 
         var lis = wrap.getElementsByTagName('li');
-        triggerEvent('#' + lis[0].id, 'click');
+        triggerEvent(lis[0], 'click');
 
         san.nextTick(function () {
             expect(clickValue > 0).toBeTruthy();
@@ -1467,11 +1588,6 @@ describe("ForDirective", function () {
     });
 
     it("in no tbody declaration, may append in right position", function (done) {
-        if (/msie/i.test(navigator.userAgent)) {
-            done();
-            return;
-        }
-
         var MyComponent = san.defineComponent({
             template: '<table cellpadding="0" cellspacing="0" width="100">'
                 + '<tr><th san-for="item in schema">{{item.label}}</th></tr>'
@@ -1765,8 +1881,8 @@ describe("ForDirective", function () {
 
         var bs = wrap.getElementsByTagName('b');
         expect(bs.length).toBe(2);
-        expect(bs[0].innerHTML).toBe('foo');
-        expect(bs[1].innerHTML).toBe('bar');
+        expect(bs[0].innerHTML).toContain('foo');
+        expect(bs[1].innerHTML).toContain('bar');
 
 
         var inputs = wrap.getElementsByTagName('input');
@@ -1780,8 +1896,8 @@ describe("ForDirective", function () {
         san.nextTick(function () {
             var bs = wrap.getElementsByTagName('b');
             expect(bs.length).toBe(2);
-            expect(bs[0].innerHTML).toBe('foo');
-            expect(bs[1].innerHTML).toBe('bar|foo');
+            expect(bs[0].innerHTML).toContain('foo');
+            expect(bs[1].innerHTML).toContain('bar|foo');
 
 
             var inputs = wrap.getElementsByTagName('input');
@@ -1796,4 +1912,573 @@ describe("ForDirective", function () {
         });
     });
 
+
+    it("splice more than once", function (done) {
+
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="item in list">{{item}}</li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(10);
+        expect(lis[0].innerHTML).toContain('1');
+        expect(lis[1].innerHTML).toContain('2');
+
+        myComponent.data.splice('list', [0, 5, 5, 1, 2, 3, 4]);
+        myComponent.data.splice('list', [0, 0, 11, 12]);
+
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(12);
+            expect(lis[0].innerHTML).toContain('11');
+            expect(lis[1].innerHTML).toContain('12');
+            expect(lis[2].innerHTML).toContain('5');
+            expect(lis[3].innerHTML).toContain('1');
+            expect(lis[4].innerHTML).toContain('2');
+            expect(lis[5].innerHTML).toContain('3');
+            expect(lis[6].innerHTML).toContain('4');
+            expect(lis[7].innerHTML).toContain('6');
+            expect(lis[8].innerHTML).toContain('7');
+            expect(lis[9].innerHTML).toContain('8');
+            expect(lis[10].innerHTML).toContain('9');
+            expect(lis[11].innerHTML).toContain('10');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("with component, splice more than once", function (done) {
+
+        var A = san.defineComponent({
+            template: '<li>{{index}}-{{name}}</li>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-a': A
+            },
+            template: '<ul><x-a s-for="p, index in list" index="{{index}}" name="{{p}}"/></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                list: ['one', 'two']
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(2);
+        expect(lis[0].innerHTML).toContain('0-one');
+        expect(lis[1].innerHTML).toContain('1-two');
+
+        myComponent.data.splice('list', [0, 0, 'three']);
+        myComponent.data.splice('list', [0, 0, 'four', 'five']);
+
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(5);
+            expect(lis[0].innerHTML).toContain('0-four');
+            expect(lis[1].innerHTML).toContain('1-five');
+            expect(lis[2].innerHTML).toContain('2-three');
+            expect(lis[3].innerHTML).toContain('3-one');
+            expect(lis[4].innerHTML).toContain('4-two');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("noexist item set more than once in a clock", function (done) {
+
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="item in list">{{item.name}} - {{item.company}}</li></ul>'
+        });
+
+
+
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        myComponent.data.set('list', [{ name: 'erik' }]);
+        myComponent.data.set('list[0].company', 'bidu');
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(0);
+
+
+        san.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(1);
+            expect(lis[0].innerHTML).toContain('erik - bidu');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+
+    it("component can track owner splice change ", function (done) {
+
+        var List = san.defineComponent({
+            template: '<ul><li s-for="item in list">{{item}}</li></ul>'
+        });
+
+        var MyComponent = san.defineComponent({
+            components: {
+                'x-list': List
+            },
+
+            template: '<div><x-list list="{{list}}" /></div>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                list: [1, 2, 3]
+            }
+        });
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var li = wrap.getElementsByTagName('li')[0];
+        expect(li.innerHTML).toBe('1');
+
+        myComponent.data.unshift('list', 9);
+        myComponent.nextTick(function () {
+            expect(wrap.getElementsByTagName('li')[0].innerHTML).toBe('9');
+            var fli = wrap.getElementsByTagName('li')[1];
+            expect(fli === li).toBeTruthy();
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("for array literal", function (done) {
+
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="item in [1, 2, three, ...other]">{{item}}</li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                three: 3,
+                other: []
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(3)
+        expect(lis[2].innerHTML).toBe('3');
+
+        myComponent.data.set('three', 33);
+        myComponent.data.set('other', [44,55]);
+        myComponent.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis.length).toBe(5)
+            expect(lis[2].innerHTML).toBe('33');
+            expect(lis[3].innerHTML).toBe('44');
+            expect(lis[4].innerHTML).toBe('55');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("set outer data directly", function (done) {
+
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="member in org.members"><u>{{org.name}}</u><b>{{member}}</b></li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                org: {
+                    name: 'efe',
+                    members: [
+                        'errorrik',
+                        'leeight',
+                        'otakustay'
+                    ]
+                }
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var bs = wrap.getElementsByTagName('b');
+        var us = wrap.getElementsByTagName('u');
+        expect(bs.length).toBe(3);
+        expect(bs[0].innerHTML).toBe('errorrik');
+        expect(bs[1].innerHTML).toBe('leeight');
+        expect(bs[2].innerHTML).toBe('otakustay');
+        expect(us[0].innerHTML).toBe('efe');
+        expect(us[1].innerHTML).toBe('efe');
+        expect(us[2].innerHTML).toBe('efe');
+
+        myComponent.data.set('org', {
+            name: 'fe',
+            members: [
+                'errorrik',
+                'otakustay',
+                'dafrok'
+            ]
+        });
+        myComponent.nextTick(function () {
+            var bs = wrap.getElementsByTagName('b');
+            var us = wrap.getElementsByTagName('u');
+            expect(bs.length).toBe(3);
+            expect(bs[0].innerHTML).toBe('errorrik');
+            expect(bs[1].innerHTML).toBe('otakustay');
+            expect(bs[2].innerHTML).toBe('dafrok');
+            expect(us[0].innerHTML).toBe('fe');
+            expect(us[1].innerHTML).toBe('fe');
+            expect(us[2].innerHTML).toBe('fe');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("set outer data directly with trackBy", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="member in org.members trackBy member"><u>{{org.name}}</u><b>{{member}}</b></li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                org: {
+                    name: 'efe',
+                    members: [
+                        'errorrik',
+                        'leeight',
+                        'otakustay'
+                    ]
+                }
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var bs = wrap.getElementsByTagName('b');
+        var us = wrap.getElementsByTagName('u');
+        expect(bs.length).toBe(3);
+        expect(bs[0].innerHTML).toBe('errorrik');
+        expect(bs[1].innerHTML).toBe('leeight');
+        expect(bs[2].innerHTML).toBe('otakustay');
+        expect(us[0].innerHTML).toBe('efe');
+        expect(us[1].innerHTML).toBe('efe');
+        expect(us[2].innerHTML).toBe('efe');
+
+
+        var lis = wrap.getElementsByTagName('li');
+        var errEl = lis[0];
+        var otaEl = lis[2];
+
+        myComponent.data.set('org', {
+            name: 'fe',
+            members: [
+                'errorrik',
+                'otakustay',
+                'dafrok'
+            ]
+        });
+        myComponent.nextTick(function () {
+            var bs = wrap.getElementsByTagName('b');
+            var us = wrap.getElementsByTagName('u');
+            expect(bs.length).toBe(3);
+            expect(bs[0].innerHTML).toBe('errorrik');
+            expect(bs[1].innerHTML).toBe('otakustay');
+            expect(bs[2].innerHTML).toBe('dafrok');
+            expect(us[0].innerHTML).toBe('fe');
+            expect(us[1].innerHTML).toBe('fe');
+            expect(us[2].innerHTML).toBe('fe');
+
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis[0]).toBe(errEl);
+            expect(lis[1]).toBe(otaEl);
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("set outer data directly with trackBy, just remove", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="member in org.members trackBy member"><u>{{org.name}}</u><b>{{member}}</b></li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                org: {
+                    name: 'efe',
+                    members: [
+                        'leeight',
+                        'errorrik',
+                        'otakustay',
+                        'firede',
+                        'kener',
+                        'justice',
+                        'dafo'
+                    ]
+                }
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var bs = wrap.getElementsByTagName('b');
+        var us = wrap.getElementsByTagName('u');
+        expect(bs.length).toBe(7);
+        expect(bs[0].innerHTML).toBe('leeight');
+        expect(bs[1].innerHTML).toBe('errorrik');
+        expect(bs[2].innerHTML).toBe('otakustay');
+        expect(us[0].innerHTML).toBe('efe');
+        expect(us[1].innerHTML).toBe('efe');
+        expect(us[2].innerHTML).toBe('efe');
+
+
+        var lis = wrap.getElementsByTagName('li');
+        var errEl = lis[1];
+        var otaEl = lis[2];
+        var justEl = lis[5];
+
+        myComponent.data.set('org', {
+            name: 'fe',
+            members: [
+                'errorrik',
+                'otakustay',
+                'justice'
+            ]
+        });
+        myComponent.nextTick(function () {
+
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis[0]).toBe(errEl);
+            expect(lis[1]).toBe(otaEl);
+            expect(lis[2]).toBe(justEl);
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("set outer data directly with trackBy, just add", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li s-for="member in org.members trackBy member"><u>{{org.name}}</u><b>{{member}}</b></li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                org: {
+                    name: 'efe',
+                    members: [
+                        'leeight',
+                        'errorrik'
+                    ]
+                }
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var bs = wrap.getElementsByTagName('b');
+        var us = wrap.getElementsByTagName('u');
+        expect(bs.length).toBe(2);
+        expect(bs[0].innerHTML).toBe('leeight');
+        expect(bs[1].innerHTML).toBe('errorrik');
+        expect(us[0].innerHTML).toBe('efe');
+        expect(us[1].innerHTML).toBe('efe');
+
+
+        var lis = wrap.getElementsByTagName('li');
+        var errEl = lis[1];
+        var leeEl = lis[0];
+
+        myComponent.data.set('org', {
+            name: 'fe',
+            members: [
+                'justice',
+                'luyuan',
+                'leeight',
+                'otakustay',
+                'firede',
+                'errorrik',
+                'kener',
+                'dafo'
+            ]
+        });
+        myComponent.nextTick(function () {
+
+            var lis = wrap.getElementsByTagName('li');
+            expect(lis[5]).toBe(errEl);
+            expect(lis[2]).toBe(leeEl);
+
+            var bs = wrap.getElementsByTagName('b');
+            var us = wrap.getElementsByTagName('u');
+            expect(bs.length).toBe(8);
+            expect(bs[0].innerHTML).toBe('justice');
+            expect(bs[1].innerHTML).toBe('luyuan');
+            expect(bs[2].innerHTML).toBe('leeight');
+            expect(bs[7].innerHTML).toBe('dafo');
+            expect(us[0].innerHTML).toBe('fe');
+            expect(us[1].innerHTML).toBe('fe');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+    });
+
+    it("render object", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li san-for="p,i in persons" title="{{p}}">{{i}}-{{p}}</li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                persons: {
+                    'erik': 'errorrik@gmail.com',
+                    'otakustay': 'otakustay@gmail.com'
+                }
+            }
+        });
+
+        var erikHTML = 'erik-errorrik@gmail.com';
+        var grayHTML = 'otakustay-otakustay@gmail.com';
+        var leeHTML = 'leeight-leeight@gmail.com';
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+
+        expect(lis.length).toBe(2);
+        expect(lis[0].innerHTML === erikHTML || lis[0].innerHTML === grayHTML).toBeTruthy();
+        expect(lis[1].innerHTML === erikHTML || lis[1].innerHTML === grayHTML).toBeTruthy();
+
+        myComponent.data.set('persons.leeight', 'leeight@gmail.com');
+        myComponent.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+
+            expect(lis.length).toBe(3);
+            expect(lis[0].innerHTML === erikHTML || lis[0].innerHTML === grayHTML || lis[0].innerHTML === leeHTML).toBeTruthy();
+            expect(lis[1].innerHTML === erikHTML || lis[1].innerHTML === grayHTML || lis[1].innerHTML === leeHTML).toBeTruthy();
+            expect(lis[2].innerHTML === erikHTML || lis[2].innerHTML === grayHTML || lis[2].innerHTML === leeHTML).toBeTruthy();
+
+            myComponent.data.set('persons.erik', null);
+            myComponent.nextTick(function () {
+                var lis = wrap.getElementsByTagName('li');
+
+                expect(lis.length).toBe(2);
+                expect(lis[0].innerHTML === grayHTML || lis[0].innerHTML === leeHTML).toBeTruthy();
+                expect(lis[1].innerHTML === grayHTML || lis[1].innerHTML === leeHTML).toBeTruthy();
+
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                done();
+            });
+        });
+
+    });
+
+    it("render object, start with undefined", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<ul><li san-for="p,i in dep.persons" title="{{p}}">{{i}}-{{p}}</li></ul>'
+        });
+
+        var myComponent = new MyComponent({
+            data: {
+                dep: {}
+            }
+        });
+
+        var erikHTML = 'erik-errorrik@gmail.com';
+        var grayHTML = 'otakustay-otakustay@gmail.com';
+        var leeHTML = 'leeight-leeight@gmail.com';
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var lis = wrap.getElementsByTagName('li');
+        expect(lis.length).toBe(0);
+
+        myComponent.data.set('dep', {
+            persons: {
+                'erik': 'errorrik@gmail.com',
+                'otakustay': 'otakustay@gmail.com'
+            }
+        });
+        myComponent.nextTick(function () {
+            var lis = wrap.getElementsByTagName('li');
+
+            expect(lis.length).toBe(2);
+            expect(lis[0].innerHTML === erikHTML || lis[0].innerHTML === grayHTML).toBeTruthy();
+            expect(lis[1].innerHTML === erikHTML || lis[1].innerHTML === grayHTML).toBeTruthy();
+
+
+            myComponent.data.set('dep.persons.leeight', 'leeight@gmail.com');
+            myComponent.nextTick(function () {
+                var lis = wrap.getElementsByTagName('li');
+
+                expect(lis.length).toBe(3);
+                expect(lis[0].innerHTML === erikHTML || lis[0].innerHTML === grayHTML || lis[0].innerHTML === leeHTML).toBeTruthy();
+                expect(lis[1].innerHTML === erikHTML || lis[1].innerHTML === grayHTML || lis[1].innerHTML === leeHTML).toBeTruthy();
+                expect(lis[2].innerHTML === erikHTML || lis[2].innerHTML === grayHTML || lis[2].innerHTML === leeHTML).toBeTruthy();
+
+                myComponent.data.set('dep', null);
+                myComponent.nextTick(function () {
+                    var lis = wrap.getElementsByTagName('li');
+                    expect(lis.length).toBe(0);
+
+                    myComponent.dispose();
+                    document.body.removeChild(wrap);
+                    done();
+                });
+            });
+        });
+
+    });
 });

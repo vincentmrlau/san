@@ -1,23 +1,18 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 编译组件类
- * @author errorrik(errorrik@gmail.com)
  */
 
 
-var each = require('../util/each');
-var IndexedList = require('../util/indexed-list');
 var createANode = require('../parser/create-a-node');
 var parseTemplate = require('../parser/parse-template');
 var parseText = require('../parser/parse-text');
 var defineComponent = require('./define-component');
 
-
-/* eslint-disable quotes */
-var componentPropExtra = [
-    {name: 'class', expr: parseText("{{class | _class | _sep(' ')}}")},
-    {name: 'style', expr: parseText("{{style | _style | _sep(';')}}")}
-];
-/* eslint-enable quotes */
 
 /**
  * 编译组件类。预解析template和components
@@ -35,7 +30,7 @@ function compileComponent(ComponentClass) {
         for (var key in components) { // eslint-disable-line
             var componentClass = components[key];
 
-            if (typeof componentClass === 'object') {
+            if (typeof componentClass === 'object' && !(componentClass instanceof ComponentLoader)) {
                 components[key] = defineComponent(componentClass);
             }
             else if (componentClass === 'self') {
@@ -54,12 +49,13 @@ function compileComponent(ComponentClass) {
         var tpl = ComponentClass.template || proto.template;
         if (tpl) {
             var aNode = parseTemplate(tpl, {
-                trimWhitespace: proto.trimWhitespace || ComponentClass.trimWhitespace
+                trimWhitespace: proto.trimWhitespace || ComponentClass.trimWhitespace,
+                delimiters: proto.delimiters || ComponentClass.delimiters
             });
             var firstChild = aNode.children[0];
 
             // #[begin] error
-            if (aNode.children.length !== 1 || firstChild.isText) {
+            if (aNode.children.length !== 1 || firstChild.textExpr) {
                 throw new Error('[SAN FATAL] template must have a root element.');
             }
             // #[end]
@@ -69,22 +65,33 @@ function compileComponent(ComponentClass) {
                 firstChild.tagName = null;
             }
 
-            firstChild.binds = new IndexedList();
+            var componentPropExtra = {
+                'class': {name: 'class', expr: parseText('{{class | _class | _sep(" ")}}')},
+                'style': {name: 'style', expr: parseText('{{style | _style | _sep(";")}}')},
+                'id': {name: 'id', expr: parseText('{{id}}')}
+            };
 
-            each(componentPropExtra, function (extra) {
-                var prop = firstChild.props.get(extra.name);
-                if (prop) {
-                    prop.expr.segs.push(extra.expr.segs[0]);
-                    prop.expr.value = null;
-                    prop.attr = null;
+            var len = firstChild.props.length;
+            while (len--) {
+                var prop = firstChild.props[len];
+                var extra = componentPropExtra[prop.name];
+
+                if (extra) {
+                    firstChild.props.splice(len, 1);
+                    componentPropExtra[prop.name] = prop;
+
+                    if (prop.name !== 'id') {
+                        prop.expr.segs.push(extra.expr.segs[0]);
+                        prop.expr.value = null;
+                    }
                 }
-                else {
-                    firstChild.props.push({
-                        name: extra.name,
-                        expr: extra.expr
-                    });
-                }
-            });
+            }
+
+            firstChild.props.push(
+                componentPropExtra['class'], // eslint-disable-line dot-notation
+                componentPropExtra.style,
+                componentPropExtra.id
+            );
         }
     }
 }

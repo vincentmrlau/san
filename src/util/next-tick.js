@@ -1,7 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 在下一个时间周期运行任务
- * @description
- * @author errorrik(errorrik@gmail.com)
  */
 
 // 该方法参照了vue2.5.0的实现，感谢vue团队
@@ -9,7 +12,6 @@
 
 
 var bind = require('./bind');
-var each = require('./each');
 
 /**
  * 下一个周期要执行的任务列表
@@ -58,9 +60,9 @@ function nextTick(fn, thisArg) {
         nextTasks = [];
         nextHandler = null;
 
-        each(tasks, function (task) {
-            task();
-        });
+        for (var i = 0, l = tasks.length; i < l; i++) {
+            tasks[i]();
+        }
     };
 
     // 非标准方法，但是此方法非常吻合要求。

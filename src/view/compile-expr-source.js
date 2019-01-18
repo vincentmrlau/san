@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 编译源码的 helper 方法集合
- * @author errorrik(errorrik@gmail.com)
  */
 
 var each = require('../util/each');
@@ -63,6 +67,42 @@ var compileExprSource = {
     },
 
     /**
+     * 生成调用表达式代码
+     *
+     * @param {Object?} callExpr 调用表达式对象
+     * @return {string}
+     */
+    callExpr: function (callExpr) {
+        var paths = callExpr.name.paths;
+        var code = 'componentCtx.' + paths[0].value;
+
+        for (var i = 1; i < paths.length; i++) {
+            var path = paths[i];
+
+            switch (path.type) {
+                case ExprType.STRING:
+                    code += '.' + path.value;
+                    break;
+
+                case ExprType.NUMBER:
+                    code += '[' + path.value + ']';
+                    break;
+
+                default:
+                    code += '[' + compileExprSource.expr(path) + ']';
+            }
+        }
+
+        code += '(';
+        each(callExpr.args, function (arg, index) {
+            code += (index > 0 ? ', ' : '') + compileExprSource.expr(arg);
+        });
+        code += ')';
+
+        return code;
+    },
+
+    /**
      * 生成插值代码
      *
      * @param {Object} interpExpr 插值表达式对象
@@ -71,13 +111,38 @@ var compileExprSource = {
     interp: function (interpExpr) {
         var code = compileExprSource.expr(interpExpr.expr);
 
+
         each(interpExpr.filters, function (filter) {
-            code = 'componentCtx.callFilter("' + filter.name.paths[0].value + '", [' + code;
-            each(filter.args, function (arg) {
-                code += ', ' + compileExprSource.expr(arg);
-            });
-            code += '])';
+            var filterName = filter.name.paths[0].value;
+
+            switch (filterName) {
+                case '_style':
+                case '_class':
+                    code = filterName + 'Filter(' + code + ')';
+                    break;
+
+                case '_sep':
+                    code = '_sepFilter(' + code + ', ' + compileExprSource.expr(filter.args[0]) + ')';
+                    break;
+
+                case 'url':
+                    code = 'encodeURIComponent(' + code + ')';
+                    break;
+                    encodeURIComponent
+
+                default:
+                    code = 'componentCtx.callFilter("' + filterName + '", [' + code;
+                    each(filter.args, function (arg) {
+                        code += ', ' + compileExprSource.expr(arg);
+                    });
+                    code += '])';
+            }
+
         });
+
+        if (!interpExpr.original) {
+            return 'escapeHTML(' + code + ')';
+        }
 
         return code;
     },
@@ -96,30 +161,48 @@ var compileExprSource = {
         var code = '';
 
         each(textExpr.segs, function (seg) {
-            if (seg.type === ExprType.INTERP && !seg.filters[0]) {
-                seg = {
-                    type: ExprType.INTERP,
-                    expr: seg.expr,
-                    filters: [
-                        {
-                            type: ExprType.CALL,
-                            name: {
-                                type: ExprType.ACCESSOR,
-                                paths: [
-                                    {type: ExprType.STRING, value: 'html'}
-                                ]
-                            },
-                            args: []
-                        }
-                    ]
-                };
-            }
-
             var segCode = compileExprSource.expr(seg);
             code += code ? ' + ' + segCode : segCode;
         });
 
         return code;
+    },
+
+    /**
+     * 生成数组字面量代码
+     *
+     * @param {Object} arrayExpr 数组字面量表达式对象
+     * @return {string}
+     */
+    array: function (arrayExpr) {
+        var code = [];
+
+        each(arrayExpr.items, function (item) {
+            code.push((item.spread ? '...' : '') + compileExprSource.expr(item.expr));
+        });
+
+        return '[\n' + code.join(',\n') + '\n]';
+    },
+
+    /**
+     * 生成对象字面量代码
+     *
+     * @param {Object} objExpr 对象字面量表达式对象
+     * @return {string}
+     */
+    object: function (objExpr) {
+        var code = [];
+
+        each(objExpr.items, function (item) {
+            if (item.spread) {
+                code.push('...' + compileExprSource.expr(item.expr));
+            }
+            else {
+                code.push(compileExprSource.expr(item.name) + ':' + compileExprSource.expr(item.expr));
+            }
+        });
+
+        return '{\n' + code.join(',\n') + '\n}';
     },
 
     /**
@@ -153,9 +236,28 @@ var compileExprSource = {
      * @return {string}
      */
     expr: function (expr) {
+        if (expr.parenthesized) {
+            return '(' + compileExprSource._expr(expr) + ')';
+        }
+
+        return compileExprSource._expr(expr);
+    },
+
+    /**
+     * 根据表达式类型进行生成代码函数的中转分发
+     *
+     * @param {Object} expr 表达式对象
+     * @return {string}
+     */
+    _expr: function (expr) {
         switch (expr.type) {
             case ExprType.UNARY:
-                return '!' + compileExprSource.expr(expr.expr);
+                switch (expr.operator) {
+                    case 33:
+                        return '!' + compileExprSource.expr(expr.expr);
+                    case 45:
+                        return '-' + compileExprSource.expr(expr.expr);
+                }
 
             case ExprType.BINARY:
                 return compileExprSource.expr(expr.segs[0])
@@ -168,7 +270,7 @@ var compileExprSource = {
                     + ':' + compileExprSource.expr(expr.segs[2]);
 
             case ExprType.STRING:
-                return compileExprSource.stringLiteralize(expr.value);
+                return compileExprSource.stringLiteralize(expr.literal || expr.value);
 
             case ExprType.NUMBER:
                 return expr.value;
@@ -184,6 +286,15 @@ var compileExprSource = {
 
             case ExprType.TEXT:
                 return compileExprSource.text(expr);
+
+            case ExprType.ARRAY:
+                return compileExprSource.array(expr);
+
+            case ExprType.OBJECT:
+                return compileExprSource.object(expr);
+
+            case ExprType.CALL:
+                return compileExprSource.callExpr(expr);
         }
     }
 };

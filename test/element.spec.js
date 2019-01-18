@@ -563,40 +563,6 @@ describe("Element", function () {
         });
     });
 
-    it("s-html with filter", function (done) {
-        var MyComponent = san.defineComponent({
-            filters: {
-                b: function (source) {
-                    return '<b>' + source.replace(/^b:/, '') + '</b>';
-                }
-            },
-
-            template: '<a><span s-html="html|b"></span></a>'
-        });
-        var myComponent = new MyComponent();
-        myComponent.data.set('html', 'b:xxx');
-
-        var wrap = document.createElement('div');
-        document.body.appendChild(wrap);
-        myComponent.attach(wrap);
-
-        var span = wrap.getElementsByTagName('span')[0];
-        expect(/^<b>xxx<\/b>/i.test(span.innerHTML)).toBeTruthy();
-
-
-        myComponent.data.set('html', 'b:aaa');
-
-
-        san.nextTick(function () {
-
-            expect(/^<b>aaa<\/b>/i.test(span.innerHTML)).toBeTruthy();
-
-            myComponent.dispose();
-            document.body.removeChild(wrap);
-
-            done();
-        });
-    });
 
 
 
@@ -613,13 +579,13 @@ describe("Element", function () {
 
         var a = wrap.getElementsByTagName('a')[0];
         var b = wrap.getElementsByTagName('b')[0];
-        expect(/\/span>hello er<u>erik<\/u>ik!<b/i.test(a.innerHTML)).toBeTruthy();
+        expect(/hello er<u>erik<\/u>ik!/i.test(a.innerHTML)).toBeTruthy();
         expect(b.innerHTML).toBe('bbb');
 
         myComponent.data.set('name', 'er<span>erik</span>ik');
 
         san.nextTick(function () {
-            expect(/\/span>hello er<span>erik<\/span>ik!<b/i.test(a.innerHTML)).toBeTruthy();
+            expect(/hello er<span>erik<\/span>ik!/i.test(a.innerHTML)).toBeTruthy();
             expect(b.innerHTML).toBe('bbb');
 
             myComponent.dispose();
@@ -642,13 +608,14 @@ describe("Element", function () {
 
         var a = wrap.getElementsByTagName('a')[0];
         var b = wrap.getElementsByTagName('b')[0];
-        expect(/^hello er<u>erik<\/u>ik!<b/i.test(a.innerHTML)).toBeTruthy();
+
+        expect(/hello er<u>erik<\/u>ik!/i.test(a.innerHTML)).toBeTruthy();
         expect(b.innerHTML).toBe('bbb');
 
         myComponent.data.set('name', 'er<span>erik</span>ik');
 
         san.nextTick(function () {
-            expect(/^hello er<span>erik<\/span>ik!<b/i.test(a.innerHTML)).toBeTruthy();
+            expect(/hello er<span>erik<\/span>ik!/i.test(a.innerHTML)).toBeTruthy();
             expect(b.innerHTML).toBe('bbb');
 
             myComponent.dispose();
@@ -670,12 +637,12 @@ describe("Element", function () {
         myComponent.attach(wrap);
 
         var a = wrap.getElementsByTagName('a')[0];
-        expect(/\/span>hello er<u>erik<\/u>ik!$/i.test(a.innerHTML)).toBeTruthy();
+        expect(/hello er<u>erik<\/u>ik!/i.test(a.innerHTML)).toBeTruthy();
 
         myComponent.data.set('name', 'er<span>erik</span>ik');
 
         san.nextTick(function () {
-            expect(/\/span>hello er<span>erik<\/span>ik!$/i.test(a.innerHTML)).toBeTruthy();
+            expect(/hello er<span>erik<\/span>ik!/i.test(a.innerHTML)).toBeTruthy();
 
             myComponent.dispose();
             document.body.removeChild(wrap);
@@ -743,5 +710,217 @@ describe("Element", function () {
 
             done();
         });
+    });
+
+    it("id prop can change", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div><a id="a-{{name}}">{{name}}</a></div>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                name: 'er'
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var a = document.getElementById('a-er');
+        expect(a.tagName).toBe('A');
+
+        myComponent.data.set('name', 'san');
+
+        san.nextTick(function () {
+            expect(document.getElementById('a-er') == null).toBeTruthy();
+            expect(a === document.getElementById('a-san')).toBeTruthy();
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+
+            done();
+        });
+    });
+
+    it("html entity in text should decode collectly", function () {
+        var MyComponent = san.defineComponent({
+            template: '<div data-text="&lt;&amp;ddddd&quot;&gt;&#39;&#x00021;"></div>'
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        expect(myComponent.el.getAttribute('data-text')).toBe('<&ddddd">\'!');
+
+        myComponent.dispose();
+        document.body.removeChild(wrap);
+    });
+
+    it("html entity support is limited", function () {
+        var entityStr = '&#39;&#x00021;&emsp;&ensp;&thinsp;&copy;&lt;p&gt;&reg;&lt;/p&gt;&reg;&zwnj;&zwj;&lt;&nbsp;&gt;&quot;';
+        var MyComponent = san.defineComponent({
+            template: '<u>' + entityStr + '</u>'
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var compare = document.createElement('u');
+        compare.innerHTML = entityStr;
+        document.body.appendChild(compare);
+
+        expect(myComponent.el.offsetWidth).toBe(compare.offsetWidth);
+        myComponent.dispose();
+        document.body.removeChild(wrap);
+        document.body.removeChild(compare);
+    });
+
+    it("has only s-bind attr", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div><input s-bind="inputProps"><u>{{inputProps.value}}</u></div>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                inputProps: {
+                    type: 'text',
+                    value: 'hello'
+                }
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var input = wrap.getElementsByTagName('input')[0];
+        var u = wrap.getElementsByTagName('u')[0];
+        expect(input.value).toBe('hello');
+        expect(u.innerHTML).toContain('hello');
+
+        myComponent.data.set('inputProps.value', 'mygod');
+        myComponent.nextTick(function () {
+            expect(input.value).toBe('mygod');
+            expect(u.innerHTML).toContain('mygod');
+
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+            done();
+        });
+
+    });
+
+    it("has s-bind with other attr, confilct", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div><a s-bind="aProps" target="{{target}}">link</a></div>'
+        });
+        var myComponent = new MyComponent({
+            data: {
+                aProps: {
+                    title: 'link',
+                    href: 'http://www.baidu.com/',
+                    target: '_top',
+                    'data-test': 'test'
+                },
+                target: '_blank'
+            }
+        });
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var a = wrap.getElementsByTagName('a')[0];
+        expect(a.title).toBe('link');
+        expect(a.target).toBe('_blank');
+        expect(a.href).toContain('baidu');
+        expect(a.getAttribute('data-test')).toContain('test');
+
+        myComponent.data.set('aProps', {
+            href: 'https://github.com/',
+            target: '_self'
+        });
+        myComponent.nextTick(function () {
+            expect(a.title).toBeFalsy();
+            expect(a.target).toBe('_blank');
+            expect(a.href).toContain('github');
+            expect(a.getAttribute('data-test')).toBeFalsy();
+
+            myComponent.data.set('target', 'test');
+            myComponent.nextTick(function () {
+                expect(a.target).toBe('test');
+
+                myComponent.dispose();
+                document.body.removeChild(wrap);
+                done();
+            });
+        });
+
+    });
+
+    it("disabled attr for normal element", function () {
+        var MyComponent = san.defineComponent({
+            template: '<div><a disabled checked>san</a></div>'
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var a = wrap.getElementsByTagName('a')[0];
+
+        // ie 是个 bt，什么元素都能 disabled
+        if (!/msie/i.test(navigator.userAgent)) {
+            expect(a.hasAttribute('disabled')).toBeTruthy();
+        }
+        expect(a.hasAttribute('checked')).toBeTruthy();
+
+        expect(a.disabled).toBeFalsy();
+        expect(a.checked).toBeFalsy();
+
+        myComponent.dispose();
+        document.body.removeChild(wrap);
+    });
+
+    it("disabled attr for form element", function () {
+        var MyComponent = san.defineComponent({
+            template: '<div><button disabled>san</button></div>'
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var btn = wrap.getElementsByTagName('button')[0];
+        expect(btn.disabled).toBeTruthy();
+
+        myComponent.dispose();
+        document.body.removeChild(wrap);
+    });
+
+    it("type attr for button element", function (done) {
+        var MyComponent = san.defineComponent({
+            template: '<div><form action="https://www.baidu.com/"><input type="text" value="test" name="kw"><button type="button">nosubmit</button></form></div>'
+        });
+        var myComponent = new MyComponent();
+
+        var wrap = document.createElement('div');
+        document.body.appendChild(wrap);
+        myComponent.attach(wrap);
+
+        var btn = wrap.getElementsByTagName('button')[0];
+        expect(btn.getAttribute('type')).toBe('button');
+
+        triggerEvent(btn, 'click');
+        setTimeout(function () {
+            done();
+            myComponent.dispose();
+            document.body.removeChild(wrap);
+        }, 2000)
     });
 });

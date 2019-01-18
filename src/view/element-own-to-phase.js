@@ -1,9 +1,14 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 使元素节点到达相应的生命周期
- * @author errorrik(errorrik@gmail.com)
  */
 
-var elementToPhase = require('./element-to-phase');
+
+var LifeCycle = require('./life-cycle');
 
 /**
  * 使元素节点到达相应的生命周期
@@ -11,7 +16,7 @@ var elementToPhase = require('./element-to-phase');
  * @param {string} name 生命周期名称
  */
 function elementOwnToPhase(name) {
-    elementToPhase(this, name);
+    this.lifeCycle = LifeCycle[name] || this.lifeCycle;
 }
 
 exports = module.exports = elementOwnToPhase;

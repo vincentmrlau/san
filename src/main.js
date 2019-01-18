@@ -1,15 +1,15 @@
 /**
- * San
- * Copyright 2016 Baidu Inc. All rights reserved.
+ * Copyright (c) Baidu Inc. All rights reserved.
  *
- * @file 主文件
- * @author errorrik(errorrik@gmail.com)
- *         otakustay(otakustay@gmail.com)
- *         junmer(junmer@foxmail.com)
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
+ * @file San 主文件
  */
 
 (function (root) {
     // 人工调整打包代码顺序，通过注释手工写一些依赖
+    // require('./util/guid');
     // require('./util/empty');
     // require('./util/extend');
     // require('./util/inherits');
@@ -21,11 +21,10 @@
     // require('./browser/svg-tags');
     // require('./browser/create-el');
     // require('./browser/remove-el');
-    // require('./util/guid');
     // require('./util/next-tick');
     // require('./browser/ie');
     // require('./browser/ie-old-than-9');
-    // require('./util/indexed-list');
+    // require('./browser/input-event-compatible');
     // require('./browser/auto-close-tags');
     // require('./util/data-types.js');
     // require('./util/create-data-types-checker.js');
@@ -34,21 +33,12 @@
     // require('./parser/parse-template');
     // require('./runtime/change-expr-compare');
     // require('./runtime/data-change-type');
-    // require('./runtime/data');
-    // require('./runtime/escape-html');
     // require('./runtime/default-filters');
-    // require('./runtime/binary-op');
-    // require('./runtime/eval-expr');
     // require('./view/life-cycle');
     // require('./view/node-type');
-    // require('./view/gen-stump-html');
-    // require('./view/create-text');
     // require('./view/get-prop-handler');
     // require('./view/is-data-change-by-element');
     // require('./view/event-declaration-listener');
-    // require('./view/gen-element-start-html');
-    // require('./view/gen-element-end-html');
-    // require('./view/gen-element-children-html');
     // require('./view/create-node');
 
 
@@ -64,8 +54,11 @@
     var Component = require('./view/component');
     var compileComponent = require('./view/compile-component');
     var defineComponent = require('./view/define-component');
+    var createComponentLoader = require('./view/create-component-loader');
     var emitDevtool = require('./util/emit-devtool');
     var compileJSSource = require('./view/compile-js-source');
+    var Data = require('./runtime/data');
+    var evalExpr = require('./runtime/eval-expr');
     var DataTypes = require('./util/data-types');
 
 
@@ -130,6 +123,17 @@
         defineComponent: defineComponent,
 
         /**
+         * 创建组件Loader
+         *
+         * @param {Object|Function} options 创建组件Loader的参数。为Object时参考下方描述，为Function时代表load方法。
+         * @param {Function} options.load load方法
+         * @param {Function=} options.placeholder loading过程中渲染的占位组件
+         * @param {Function=} options.fallback load失败时渲染的组件
+         * @return {ComponentLoader}
+         */
+        createComponentLoader: createComponentLoader,
+
+        /**
          * 编译组件类。预解析template和components
          *
          * @param {Function} ComponentClass 组件类
@@ -180,6 +184,25 @@
          * @param {Function} fn 要运行的函数
          */
         nextTick: nextTick,
+
+        /**
+         * 数据类
+         *
+         * @class
+         * @param {Object?} data 初始数据
+         * @param {Data?} parent 父级数据对象
+         */
+        Data: Data,
+
+        /**
+         * 计算表达式的值
+         *
+         * @param {Object} expr 表达式对象
+         * @param {Data} data 数据对象
+         * @param {Component=} owner 组件对象，用于表达式中filter的执行
+         * @return {*}
+         */
+        evalExpr: evalExpr,
 
         /**
          * 构建类之间的继承关系

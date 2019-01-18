@@ -1,6 +1,10 @@
 /**
+ * Copyright (c) Baidu Inc. All rights reserved.
+ *
+ * This source code is licensed under the MIT license.
+ * See LICENSE file in the project root for license information.
+ *
  * @file 字符串源码读取类
- * @author errorrik(errorrik@gmail.com)
  */
 
 
@@ -22,7 +26,7 @@ function Walker(source) {
  * @return {number}
  */
 Walker.prototype.currentCode = function () {
-    return this.charCode(this.index);
+    return this.source.charCodeAt(this.index);
 };
 
 /**
@@ -67,6 +71,7 @@ Walker.prototype.charCode = function (index) {
 
 /**
  * 向前读取字符，直到遇到指定字符再停止
+ * 未指定字符时，当遇到第一个非空格、制表符的字符停止
  *
  * @param {number=} charCode 指定字符的code
  * @return {boolean} 当指定字符时，返回是否碰到指定的字符
@@ -75,8 +80,14 @@ Walker.prototype.goUntil = function (charCode) {
     var code;
     while (this.index < this.len && (code = this.currentCode())) {
         switch (code) {
+            // 空格 space
             case 32:
+            // 制表符 tab
             case 9:
+            // \r
+            case 13:
+            // \n
+            case 10:
                 this.index++;
                 break;
             default:
@@ -93,18 +104,17 @@ Walker.prototype.goUntil = function (charCode) {
  * 向前读取符合规则的字符片段，并返回规则匹配结果
  *
  * @param {RegExp} reg 字符片段的正则表达式
- * @return {Array}
+ * @param {boolean} isMatchStart 是否必须匹配当前位置
+ * @return {Array?}
  */
-Walker.prototype.match = function (reg) {
+Walker.prototype.match = function (reg, isMatchStart) {
     reg.lastIndex = this.index;
 
     var match = reg.exec(this.source);
-    if (match) {
+    if (match && (!isMatchStart || this.index === match.index)) {
         this.index = reg.lastIndex;
+        return match;
     }
-
-    return match;
 };
 
 exports = module.exports = Walker;
-
